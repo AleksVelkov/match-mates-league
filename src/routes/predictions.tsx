@@ -2,11 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
-import { Countdown } from "@/components/Countdown";
 import {
   currentGroup,
   fixtures as initialFixtures,
-  suggestedScores,
   type Fixture,
 } from "@/lib/mock-data";
 import { Star } from "lucide-react";
@@ -28,13 +26,14 @@ function PredictionsPage() {
   const total = fixtures.length;
   const jokerId = useMemo(() => fixtures.find((f) => f.isJoker)?.id ?? null, [fixtures]);
 
-  const setScore = (id: string, h: number, a: number) => {
+  const setScore = (id: string, side: "home" | "away", raw: string) => {
+    const n = raw === "" ? null : Math.max(0, Math.min(99, parseInt(raw, 10) || 0));
     setFixtures((arr) =>
-      arr.map((f) =>
-        f.id === id
-          ? { ...f, predictionHome: Math.max(0, h), predictionAway: Math.max(0, a) }
-          : f,
-      ),
+      arr.map((f) => {
+        if (f.id !== id) return f;
+        if (side === "home") return { ...f, predictionHome: n };
+        return { ...f, predictionAway: n };
+      }),
     );
   };
 
@@ -49,15 +48,6 @@ function PredictionsPage() {
       <ScreenHeader
         eyebrow={`${currentGroup.competition} · Round ${currentGroup.round}`}
         title="Predict"
-        right={
-          <div className="rounded-xl bg-surface px-3 py-1.5 text-right">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Done</div>
-            <div className="font-display text-xl leading-none">
-              <span className="text-primary">{submitted}</span>
-              <span className="text-muted-foreground">/{total}</span>
-            </div>
-          </div>
-        }
       />
 
       {/* Round progress + joker status */}
@@ -93,7 +83,7 @@ function PredictionsPage() {
           <FixtureRow
             key={f.id}
             fixture={f}
-            onScore={(h, a) => setScore(f.id, h, a)}
+            onScore={(side, v) => setScore(f.id, side, v)}
             onJoker={() => toggleJoker(f.id)}
           />
         ))}
@@ -111,19 +101,28 @@ function PredictionsPage() {
   );
 }
 
+const kickoffFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function formatKickoff(iso: string) {
+  return kickoffFormatter.format(new Date(iso));
+}
+
 function FixtureRow({
   fixture,
   onScore,
   onJoker,
 }: {
   fixture: Fixture;
-  onScore: (h: number, a: number) => void;
+  onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
-  const h = fixture.predictionHome ?? 0;
-  const a = fixture.predictionAway ?? 0;
-  const filled = fixture.predictionHome !== null;
-
   return (
     <article
       className={[
@@ -133,8 +132,10 @@ function FixtureRow({
           : "border-border bg-surface",
       ].join(" ")}
     >
-      <div className="flex items-center justify-between px-4 pt-3 text-[11px] uppercase tracking-widest text-muted-foreground">
-        <Countdown iso={fixture.kickoff} className="font-display text-sm normal-case tracking-normal text-foreground" />
+      <div className="flex items-center justify-between px-4 pt-3">
+        <span className="font-display text-sm text-foreground">
+          {formatKickoff(fixture.kickoff)}
+        </span>
         <button
           onClick={onJoker}
           className={[
@@ -149,18 +150,26 @@ function FixtureRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-3 pt-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
         {/* Home */}
         <div className="flex items-center gap-2 min-w-0">
           <TeamCrest short={fixture.homeShort} size={36} />
           <p className="truncate text-sm font-semibold">{fixture.homeShort}</p>
         </div>
 
-        {/* Score steppers */}
-        <div className="flex items-center gap-1.5">
-          <Stepper value={h} onChange={(v) => onScore(v, a)} />
+        {/* Score boxes */}
+        <div className="flex items-center gap-2">
+          <ScoreInput
+            value={fixture.predictionHome}
+            onChange={(v) => onScore("home", v)}
+            label={`${fixture.homeShort} score`}
+          />
           <span className="font-display text-2xl text-muted-foreground/60">:</span>
-          <Stepper value={a} onChange={(v) => onScore(h, v)} />
+          <ScoreInput
+            value={fixture.predictionAway}
+            onChange={(v) => onScore("away", v)}
+            label={`${fixture.awayShort} score`}
+          />
         </div>
 
         {/* Away */}
@@ -169,51 +178,34 @@ function FixtureRow({
           <TeamCrest short={fixture.awayShort} size={36} />
         </div>
       </div>
-
-      {/* Quick pick */}
-      <div className="border-t border-border/60 bg-background/30 px-4 py-2.5">
-        <div className="grid grid-cols-6 gap-1.5">
-          {suggestedScores.map(([sh, sa]) => {
-            const active = filled && sh === h && sa === a;
-            return (
-              <button
-                key={`${sh}-${sa}`}
-                onClick={() => onScore(sh, sa)}
-                className={[
-                  "rounded-lg py-1.5 font-display text-sm transition-all",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-glow"
-                    : "bg-surface text-foreground hover:bg-surface-2",
-                ].join(" ")}
-              >
-                {sh}-{sa}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </article>
   );
 }
 
-function Stepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function ScoreInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: number | null;
+  onChange: (v: string) => void;
+  label: string;
+}) {
   return (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={() => onChange(Math.max(0, value - 1))}
-        className="grid h-7 w-7 place-items-center rounded-full bg-background text-foreground active:scale-95"
-        aria-label="Decrease"
-      >
-        −
-      </button>
-      <span className="w-7 text-center font-display text-2xl leading-none">{value}</span>
-      <button
-        onClick={() => onChange(value + 1)}
-        className="grid h-7 w-7 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow active:scale-95"
-        aria-label="Increase"
-      >
-        +
-      </button>
-    </div>
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={2}
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+      placeholder="–"
+      className={[
+        "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
+        "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
+        "placeholder:text-muted-foreground/40",
+      ].join(" ")}
+    />
   );
 }
