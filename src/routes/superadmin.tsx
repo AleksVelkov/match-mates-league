@@ -10,6 +10,7 @@ import {
   getCurrentRounds,
   getCompetitionFixtures,
   syncCompetition,
+  syncCompetitionSeason,
   setMatchResult,
   setActiveRound,
 } from "@/api/superadmin";
@@ -61,6 +62,11 @@ function SuperAdminPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncLog, setSyncLog] = useState<Array<{ competition: string; ok: boolean; text: string }>>(
+    [],
+  );
+
   async function handleSaveCompetitions() {
     setSaving(true);
     setSaved(false);
@@ -71,6 +77,32 @@ function SuperAdminPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleSyncAll() {
+    const leagues = [...enabled];
+    if (!leagues.length) return;
+    setSyncLog([]);
+    for (const competition of leagues) {
+      setSyncing(competition);
+      try {
+        const r = await syncCompetitionSeason({ data: { competition } });
+        setSyncLog((log) => [
+          ...log,
+          {
+            competition,
+            ok: true,
+            text: `${r.synced} matches · round ${r.currentRound}${r.scored ? ` · scored ${r.scored}` : ""}`,
+          },
+        ]);
+      } catch (e) {
+        setSyncLog((log) => [
+          ...log,
+          { competition, ok: false, text: e instanceof Error ? e.message : "Sync failed" },
+        ]);
+      }
+    }
+    setSyncing(null);
   }
 
   function toggleCompetition(name: string) {
@@ -271,6 +303,42 @@ function SuperAdminPage() {
                 "Save changes"
               )}
             </button>
+
+            {/* Match data sync */}
+            <div className="mt-2 rounded-3xl border border-border bg-surface p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Match data sync
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pull all matches and scores from football-data.org for every enabled league.
+                Automatic syncing every 10 min will be wired up for production.
+              </p>
+
+              <button
+                onClick={handleSyncAll}
+                disabled={syncing !== null || enabled.size === 0}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? `Syncing ${syncing}…` : "Sync all enabled leagues now"}
+              </button>
+
+              {syncLog.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {syncLog.map((r) => (
+                    <li
+                      key={r.competition}
+                      className={`flex items-start justify-between gap-2 rounded-xl px-3 py-2 text-xs ${
+                        r.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
+                      }`}
+                    >
+                      <span className="font-semibold">{r.competition}</span>
+                      <span className="text-right">{r.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </>
         )}
       </div>

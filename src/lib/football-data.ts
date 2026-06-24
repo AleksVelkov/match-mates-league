@@ -9,12 +9,12 @@ export const COMPETITION_CODES: Record<string, string> = {
   "Europa League": "EL",
   "Conference League": "ECSL",
   "La Liga": "PD",
-  "Bundesliga": "BL1",
+  Bundesliga: "BL1",
   "Serie A": "SA",
   "Ligue 1": "FL1",
-  "Eredivisie": "DED",
+  Eredivisie: "DED",
   "Primeira Liga": "PPL",
-  "Championship": "ELC",
+  Championship: "ELC",
 };
 
 export type FDMatch = {
@@ -61,7 +61,7 @@ async function fdFetch<T>(path: string): Promise<{ data: T; rateLimit: RateLimit
     throw new Error(`football-data.org ${res.status}: ${text}`);
   }
 
-  const data = await res.json() as T;
+  const data = (await res.json()) as T;
   return { data, rateLimit };
 }
 
@@ -73,10 +73,20 @@ function parseHeader(value: string | null): number | null {
 
 export async function fetchMatchday(
   competitionCode: string,
-  matchday: number
+  matchday: number,
 ): Promise<{ matches: FDMatch[]; rateLimit: RateLimitInfo }> {
   const { data, rateLimit } = await fdFetch<FDMatchesResponse>(
-    `/competitions/${competitionCode}/matches?matchday=${matchday}`
+    `/competitions/${competitionCode}/matches?matchday=${matchday}`,
+  );
+  return { matches: data.matches, rateLimit };
+}
+
+/** All matches (every matchday) for a competition's current season. */
+export async function fetchAllMatches(
+  competitionCode: string,
+): Promise<{ matches: FDMatch[]; rateLimit: RateLimitInfo }> {
+  const { data, rateLimit } = await fdFetch<FDMatchesResponse>(
+    `/competitions/${competitionCode}/matches`,
   );
   return { matches: data.matches, rateLimit };
 }

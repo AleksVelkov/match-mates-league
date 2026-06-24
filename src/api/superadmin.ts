@@ -1,12 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, and, count, sql, isNull, isNotNull } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { user, groups, fixtures, predictions } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
 import { scoreFixture } from "@/lib/scoring";
-import { fetchMatchday, mapStatus, COMPETITION_CODES } from "@/lib/football-data";
+import { fetchMatchday, fetchAllMatches, mapStatus, COMPETITION_CODES } from "@/lib/football-data";
 import {
   getEnabledCompetitions as readEnabledCompetitions,
   setEnabledCompetitions as writeEnabledCompetitions,
@@ -199,6 +200,112 @@ export const syncCompetition = createServerFn({ method: "POST" })
     return {
       synced: matches.length,
       new: upserted,
+      requestsRemainingThisMinute: rateLimit.requestsAvailableMinute,
+      rateLimitResetsInSeconds: rateLimit.counterResetSeconds,
+    };
+  });
+
+/**
+ * Pull the full season of matches + scores for one competition and upsert them
+ * into the central fixtures table. Finished matches with unscored predictions
+ * are scored, and the competition's active round is set to the earliest round
+ * that still has an unplayed match. Designed to be called once per competition
+ * (the dashboard loops enabled leagues) so each invocation stays within
+ * Cloudflare's per-request subrequest budget.
+ */
+export const syncCompetitionSeason = createServerFn({ method: "POST" })
+  .validator(z.object({ competition: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const code = COMPETITION_CODES[data.competition];
+    if (!code) throw new Error(`No API code for competition "${data.competition}"`);
+
+    const { matches, rateLimit } = await fetchAllMatches(code);
+
+    const now = new Date();
+    const ops: BatchItem<"sqlite">[] = [];
+    let activeRound = Infinity;
+    let maxRound = 0;
+
+    for (const m of matches) {
+      const status = mapStatus(m.status) as "upcoming" | "live" | "finished";
+      const resultHome = m.score.fullTime.home ?? null;
+      const resultAway = m.score.fullTime.away ?? null;
+      maxRound = Math.max(maxRound, m.matchday);
+      if (status !== "finished") activeRound = Math.min(activeRound, m.matchday);
+
+      ops.push(
+        db
+          .insert(fixtures)
+          .values({
+            id: crypto.randomUUID(),
+            competition: data.competition,
+            round: m.matchday,
+            home: m.homeTeam.name,
+            homeShort: m.homeTeam.tla,
+            away: m.awayTeam.name,
+            awayShort: m.awayTeam.tla,
+            kickoffAt: new Date(m.utcDate),
+            status,
+            resultHome,
+            resultAway,
+            externalId: String(m.id),
+            createdAt: now,
+          })
+          .onConflictDoUpdate({
+            target: [fixtures.competition, fixtures.externalId],
+            set: {
+              status,
+              resultHome,
+              resultAway,
+              kickoffAt: new Date(m.utcDate),
+              round: m.matchday,
+            },
+          }),
+      );
+    }
+
+    // Apply the upserts in batches (one subrequest each) to stay within limits.
+    for (let i = 0; i < ops.length; i += 100) {
+      const chunk = ops.slice(i, i + 100);
+      if (chunk.length) {
+        await db.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+      }
+    }
+
+    // Score finished matches that have predictions which haven't been scored yet.
+    const toScore = await db
+      .selectDistinct({
+        id: fixtures.id,
+        resultHome: fixtures.resultHome,
+        resultAway: fixtures.resultAway,
+      })
+      .from(fixtures)
+      .innerJoin(predictions, eq(predictions.fixtureId, fixtures.id))
+      .where(
+        and(
+          eq(fixtures.competition, data.competition),
+          eq(fixtures.status, "finished"),
+          isNotNull(fixtures.resultHome),
+          isNotNull(fixtures.resultAway),
+          isNull(predictions.pointsEarned),
+        ),
+      );
+
+    for (const f of toScore) {
+      await scoreFixture(db, f.id, f.resultHome!, f.resultAway!);
+    }
+
+    const currentRound = Number.isFinite(activeRound) ? activeRound : maxRound || 1;
+    await setCurrentRound(db, data.competition, currentRound);
+
+    return {
+      competition: data.competition,
+      synced: matches.length,
+      scored: toScore.length,
+      currentRound,
       requestsRemainingThisMinute: rateLimit.requestsAvailableMinute,
       rateLimitResetsInSeconds: rateLimit.counterResetSeconds,
     };
