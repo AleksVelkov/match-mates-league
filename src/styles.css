@@ -162,3 +162,16 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@utility input-base {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-background);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  color: var(--color-foreground);
+  &:focus { border-color: var(--color-primary); }
+  option { background-color: var(--color-background); }
+}

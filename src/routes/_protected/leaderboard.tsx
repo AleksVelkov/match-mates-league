@@ -3,7 +3,7 @@ import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { currentGroup, members } from "@/lib/mock-data";
 import { Flame } from "lucide-react";
 
-export const Route = createFileRoute("/leaderboard")({
+export const Route = createFileRoute("/_protected/leaderboard")({
   head: () => ({
     meta: [
       { title: "ScorIQ — Leaderboard" },

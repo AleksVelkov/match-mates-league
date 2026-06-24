@@ -9,7 +9,7 @@ import {
 } from "@/lib/mock-data";
 import { Check, Star } from "lucide-react";
 
-export const Route = createFileRoute("/predictions")({
+export const Route = createFileRoute("/_protected/predictions")({
   head: () => ({
     meta: [
       { title: "ScorIQ — Predictions" },

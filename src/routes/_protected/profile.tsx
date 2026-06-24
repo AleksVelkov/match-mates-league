@@ -3,7 +3,7 @@ import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { achievements, currentGroup, me } from "@/lib/mock-data";
 import { Copy, Flame, Settings, Share2, Target, Trophy } from "lucide-react";
 
-export const Route = createFileRoute("/profile")({
+export const Route = createFileRoute("/_protected/profile")({
   head: () => ({
     meta: [
       { title: "ScorIQ — Profile" },

@@ -5,7 +5,7 @@ import { Countdown } from "@/components/Countdown";
 import { currentGroup, fixtures, me, members } from "@/lib/mock-data";
 import { ChevronRight, Flame, Target, Trophy, Users } from "lucide-react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_protected/")({
   head: () => ({
     meta: [
       { title: "ScorIQ — Home" },

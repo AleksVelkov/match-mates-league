@@ -1,8 +1,12 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { signIn, signUp } from "@/api/auth";
+import { getMe, signIn, signUp } from "@/api/auth";
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: async () => {
+    const me = await getMe();
+    if (me) throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: "ScorIQ — Sign in" },
