@@ -133,9 +133,16 @@ function FixtureRow({
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-4 pt-3">
-        <span className="font-display text-sm text-foreground">
-          {formatKickoff(fixture.kickoff)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-display text-sm text-foreground">
+            {formatKickoff(fixture.kickoff)}
+          </span>
+          {fixture.predictionHome !== null && fixture.predictionAway !== null && (
+            <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-success text-success-foreground">
+              <Check className="h-3 w-3" />
+            </span>
+          )}
+        </div>
         <button
           onClick={onJoker}
           className={[
