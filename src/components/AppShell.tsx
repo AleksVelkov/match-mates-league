@@ -2,12 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Home, Target, Trophy, User } from "lucide-react";
 
-const tabs = [
+const tabs: ReadonlyArray<{ to: "/" | "/predictions" | "/leaderboard" | "/profile"; label: string; icon: typeof Home; exact?: boolean }> = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/predictions", label: "Predict", icon: Target },
   { to: "/leaderboard", label: "Ranks", icon: Trophy },
   { to: "/profile", label: "Profile", icon: User },
-] as const;
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
