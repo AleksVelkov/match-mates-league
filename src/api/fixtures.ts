@@ -86,7 +86,7 @@ export const syncFixtures = createServerFn({ method: "POST" })
     const code = COMPETITION_CODES[group.competition];
     if (!code) throw new Error(`No API code for competition "${group.competition}"`);
 
-    const matches = await fetchMatchday(code, data.matchday);
+    const { matches, rateLimit } = await fetchMatchday(code, data.matchday);
 
     let upserted = 0;
     for (const m of matches) {
@@ -127,7 +127,12 @@ export const syncFixtures = createServerFn({ method: "POST" })
     // Update the group's current round
     await db.update(groups).set({ round: data.matchday }).where(eq(groups.id, data.groupId));
 
-    return { synced: matches.length, new: upserted };
+    return {
+      synced: matches.length,
+      new: upserted,
+      requestsRemainingThisMinute: rateLimit.requestsAvailableMinute,
+      rateLimitResetsInSeconds: rateLimit.counterResetSeconds,
+    };
   });
 
 export const submitResult = createServerFn({ method: "POST" })
