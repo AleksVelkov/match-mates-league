@@ -197,14 +197,14 @@ function SuperAdminPage() {
                     <button
                       onClick={() => toggleCompetition(name)}
                       className={[
-                        "relative h-6 w-11 rounded-full transition-colors",
+                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
                         on ? "bg-primary" : "bg-muted/40",
                       ].join(" ")}
                     >
                       <span
                         className={[
-                          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                          on ? "translate-x-5" : "translate-x-0.5",
+                          "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+                          on ? "translate-x-[22px]" : "translate-x-0.5",
                         ].join(" ")}
                       />
                     </button>

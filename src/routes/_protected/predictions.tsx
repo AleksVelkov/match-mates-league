@@ -1,12 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
+import { NoGroup } from "@/components/NoGroup";
 import { TeamCrest } from "@/components/TeamCrest";
-import {
-  currentGroup,
-  fixtures as initialFixtures,
-  type Fixture,
-} from "@/lib/mock-data";
+import { getMyGroups } from "@/api/groups";
+import { getFixtures } from "@/api/fixtures";
+import { getMyPredictions, savePredictions } from "@/api/predictions";
 import { Check, Star } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/predictions")({
@@ -16,13 +15,98 @@ export const Route = createFileRoute("/_protected/predictions")({
       { name: "description", content: "Predict every fixture in this round." },
     ],
   }),
+  loader: async () => {
+    const groups = await getMyGroups();
+    if (!groups.length) return { group: null, fixtures: [], myPreds: [] };
+    const group = groups[0];
+    const [fixtures, myPreds] = await Promise.all([
+      getFixtures({ data: { groupId: group.id, round: group.round } }),
+      getMyPredictions({ data: { groupId: group.id, round: group.round } }),
+    ]);
+    return { group, fixtures, myPreds };
+  },
   component: PredictionsPage,
 });
 
-function PredictionsPage() {
-  const [fixtures, setFixtures] = useState<Fixture[]>(initialFixtures);
+type Row = {
+  id: string;
+  homeShort: string;
+  awayShort: string;
+  kickoff: string;
+  status: "upcoming" | "live" | "finished";
+  predictionHome: number | null;
+  predictionAway: number | null;
+  isJoker: boolean;
+  locked: boolean;
+};
 
-  const submitted = fixtures.filter((f) => f.predictionHome !== null).length;
+function PredictionsPage() {
+  const data = Route.useLoaderData();
+  const router = useRouter();
+
+  if (!data.group) {
+    return (
+      <AppShell>
+        <ScreenHeader eyebrow="Predictions" title="Predict" />
+        <NoGroup />
+      </AppShell>
+    );
+  }
+
+  return <PredictionsView group={data.group} fixtures={data.fixtures} myPreds={data.myPreds} router={router} />;
+}
+
+function PredictionsView({
+  group,
+  fixtures: rawFixtures,
+  myPreds,
+  router,
+}: {
+  group: { id: string; name: string; competition: string; round: number };
+  fixtures: Array<{
+    id: string;
+    homeShort: string;
+    awayShort: string;
+    kickoffAt: string | Date;
+    status: "upcoming" | "live" | "finished";
+  }>;
+  myPreds: Array<{ fixtureId: string; scoreHome: number | null; scoreAway: number | null; isJoker: boolean }>;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const now = Date.now();
+  const predMap = useMemo(
+    () => new Map(myPreds.map((p) => [p.fixtureId, p])),
+    [myPreds],
+  );
+
+  const initial: Row[] = useMemo(
+    () =>
+      [...rawFixtures]
+        .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
+        .map((f) => {
+          const p = predMap.get(f.id);
+          const kickoff = new Date(f.kickoffAt).toISOString();
+          return {
+            id: f.id,
+            homeShort: f.homeShort,
+            awayShort: f.awayShort,
+            kickoff,
+            status: f.status,
+            predictionHome: p?.scoreHome ?? null,
+            predictionAway: p?.scoreAway ?? null,
+            isJoker: p?.isJoker ?? false,
+            locked: new Date(kickoff).getTime() <= now,
+          };
+        }),
+    [rawFixtures, predMap, now],
+  );
+
+  const [fixtures, setFixtures] = useState<Row[]>(initial);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submitted = fixtures.filter((f) => f.predictionHome !== null && f.predictionAway !== null).length;
   const total = fixtures.length;
   const jokerId = useMemo(() => fixtures.find((f) => f.isJoker)?.id ?? null, [fixtures]);
 
@@ -35,68 +119,108 @@ function PredictionsPage() {
         return { ...f, predictionAway: n };
       }),
     );
+    setSaved(false);
   };
 
   const toggleJoker = (id: string) => {
     setFixtures((arr) =>
       arr.map((f) => ({ ...f, isJoker: f.id === id ? !f.isJoker : false })),
     );
+    setSaved(false);
   };
+
+  async function handleSubmit() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const payload = fixtures
+        .filter((f) => !f.locked && (f.predictionHome !== null || f.predictionAway !== null || f.isJoker))
+        .map((f) => ({
+          fixtureId: f.id,
+          scoreHome: f.predictionHome,
+          scoreAway: f.predictionAway,
+          isJoker: f.isJoker,
+        }));
+      await savePredictions({ data: { groupId: group.id, round: group.round, predictions: payload } });
+      setSaved(true);
+      router.invalidate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save predictions");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <AppShell>
       <ScreenHeader
-        eyebrow={`${currentGroup.competition} · Round ${currentGroup.round}`}
+        eyebrow={`${group.competition} · Round ${group.round}`}
         title="Predict"
       />
 
-      {/* Round progress + joker status */}
-      <section className="px-5">
-        <div className="rounded-3xl border border-border bg-surface p-4">
-          <div className="mb-2 flex items-end justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Round progress
-            </span>
-            <span className="font-display text-lg">
-              <span className="text-primary">{submitted}</span>
-              <span className="text-muted-foreground">/{total}</span>
-            </span>
+      {total === 0 ? (
+        <section className="px-5 pt-2">
+          <div className="rounded-3xl border border-border bg-surface p-6 text-center text-sm text-muted-foreground">
+            No fixtures for this round yet. The group owner can sync them from the Admin tab.
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-background/60">
-            <div
-              className="h-full rounded-full bg-primary shadow-glow transition-all"
-              style={{ width: `${(submitted / total) * 100}%` }}
-            />
-          </div>
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <Star className={`h-3.5 w-3.5 ${jokerId ? "fill-joker text-joker" : ""}`} />
-            {jokerId
-              ? "Joker locked in — that match scores ×2."
-              : "Pick one Joker match to double your points."}
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <>
+          {/* Round progress + joker status */}
+          <section className="px-5">
+            <div className="rounded-3xl border border-border bg-surface p-4">
+              <div className="mb-2 flex items-end justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Round progress
+                </span>
+                <span className="font-display text-lg">
+                  <span className="text-primary">{submitted}</span>
+                  <span className="text-muted-foreground">/{total}</span>
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-background/60">
+                <div
+                  className="h-full rounded-full bg-primary shadow-glow transition-all"
+                  style={{ width: `${total ? (submitted / total) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <Star className={`h-3.5 w-3.5 ${jokerId ? "fill-joker text-joker" : ""}`} />
+                {jokerId
+                  ? "Joker locked in — that match scores ×2."
+                  : "Pick one Joker match to double your points."}
+              </div>
+            </div>
+          </section>
 
-      {/* All fixtures for the round */}
-      <section className="mt-5 space-y-3 px-5">
-        {fixtures.map((f) => (
-          <FixtureRow
-            key={f.id}
-            fixture={f}
-            onScore={(side, v) => setScore(f.id, side, v)}
-            onJoker={() => toggleJoker(f.id)}
-          />
-        ))}
-      </section>
+          {/* All fixtures for the round */}
+          <section className="mt-5 space-y-3 px-5">
+            {fixtures.map((f) => (
+              <FixtureRow
+                key={f.id}
+                fixture={f}
+                onScore={(side, v) => setScore(f.id, side, v)}
+                onJoker={() => toggleJoker(f.id)}
+              />
+            ))}
+          </section>
 
-      <div className="px-5 pt-5">
-        <button className="w-full rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow">
-          Submit round
-        </button>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Predictions stay hidden from your group until each kickoff.
-        </p>
-      </div>
+          <div className="px-5 pt-5">
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+            >
+              {saved ? <><Check className="h-5 w-5" /> Saved</> : saving ? "Saving…" : "Submit round"}
+            </button>
+            {error && <p className="mt-2 text-center text-[11px] text-destructive">{error}</p>}
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              Predictions stay hidden from your group until each kickoff.
+            </p>
+          </div>
+        </>
+      )}
     </AppShell>
   );
 }
@@ -119,7 +243,7 @@ function FixtureRow({
   onScore,
   onJoker,
 }: {
-  fixture: Fixture;
+  fixture: Row;
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
@@ -143,11 +267,13 @@ function FixtureRow({
           suppressHydrationWarning
         >
           {formatKickoff(fixture.kickoff)}
+          {fixture.locked && <span className="ml-2 text-[10px] uppercase tracking-widest text-muted-foreground">Locked</span>}
         </span>
         <button
           onClick={onJoker}
+          disabled={fixture.locked}
           className={[
-            "flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all",
+            "flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-50",
             fixture.isJoker
               ? "border-joker bg-joker text-joker-foreground"
               : "border-border text-muted-foreground",
@@ -169,6 +295,7 @@ function FixtureRow({
         <div className="flex items-center gap-2">
           <ScoreInput
             value={fixture.predictionHome}
+            disabled={fixture.locked}
             onChange={(v) => onScore("home", v)}
             onFocus={() => setEditingSide("home")}
             onBlur={() => setEditingSide((s) => (s === "home" ? null : s))}
@@ -177,6 +304,7 @@ function FixtureRow({
           <span className="font-display text-2xl text-muted-foreground/60">:</span>
           <ScoreInput
             value={fixture.predictionAway}
+            disabled={fixture.locked}
             onChange={(v) => onScore("away", v)}
             onFocus={() => setEditingSide("away")}
             onBlur={() => setEditingSide((s) => (s === "away" ? null : s))}
@@ -200,12 +328,14 @@ function ScoreInput({
   onFocus,
   onBlur,
   label,
+  disabled,
 }: {
   value: number | null;
   onChange: (v: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   const [saved, setSaved] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -227,6 +357,7 @@ function ScoreInput({
         maxLength={2}
         aria-label={label}
         value={value ?? ""}
+        disabled={disabled}
         onChange={handleChange}
         onFocus={onFocus}
         onBlur={onBlur}
@@ -234,7 +365,7 @@ function ScoreInput({
         className={[
           "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
           "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
-          "placeholder:text-muted-foreground/40",
+          "placeholder:text-muted-foreground/40 disabled:opacity-50",
         ].join(" ")}
       />
       {saved && (
