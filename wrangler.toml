@@ -18,7 +18,5 @@ binding = "DB"
 database_name = "scoriq-db"
 database_id = "604cce8b-21d8-47b5-a8eb-93c9c4534ac2"
 
-[vars]
-# Set real values in Cloudflare Pages dashboard → Settings → Environment variables
-SCORIQ_SECRET = "change-me-before-deploying"
-FOOTBALL_DATA_API_KEY = ""
+# Environment variables (SCORIQ_SECRET, FOOTBALL_DATA_API_KEY) are set in
+# Cloudflare Pages dashboard → Settings → Environment variables — not here.
