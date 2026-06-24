@@ -16,8 +16,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "scoriq-db"
-# TODO: replace with real ID after `npx wrangler d1 create scoriq-db`
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "604cce8b-21d8-47b5-a8eb-93c9c4534ac2"
 
 [vars]
 # Override SCORIQ_SECRET in the Pages dashboard with a long random string
