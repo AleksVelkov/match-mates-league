@@ -125,14 +125,13 @@ function FixtureRow({
 }) {
   const isComplete =
     fixture.predictionHome !== null && fixture.predictionAway !== null;
+  const [editingSide, setEditingSide] = useState<"home" | "away" | null>(null);
 
   return (
     <article
       className={[
         "overflow-hidden rounded-3xl border transition-colors",
-        isComplete
-          ? "opacity-60"
-          : "",
+        isComplete && !editingSide ? "opacity-60" : "",
         fixture.isJoker
           ? "border-joker/60 bg-gradient-to-br from-joker/15 to-surface"
           : "border-border bg-surface",
@@ -171,12 +170,16 @@ function FixtureRow({
           <ScoreInput
             value={fixture.predictionHome}
             onChange={(v) => onScore("home", v)}
+            onFocus={() => setEditingSide("home")}
+            onBlur={() => setEditingSide((s) => (s === "home" ? null : s))}
             label={`${fixture.homeShort} score`}
           />
           <span className="font-display text-2xl text-muted-foreground/60">:</span>
           <ScoreInput
             value={fixture.predictionAway}
             onChange={(v) => onScore("away", v)}
+            onFocus={() => setEditingSide("away")}
+            onBlur={() => setEditingSide((s) => (s === "away" ? null : s))}
             label={`${fixture.awayShort} score`}
           />
         </div>
@@ -194,10 +197,14 @@ function FixtureRow({
 function ScoreInput({
   value,
   onChange,
+  onFocus,
+  onBlur,
   label,
 }: {
   value: number | null;
   onChange: (v: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   label: string;
 }) {
   const [saved, setSaved] = useState(false);
@@ -221,6 +228,8 @@ function ScoreInput({
         aria-label={label}
         value={value ?? ""}
         onChange={handleChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         placeholder="–"
         className={[
           "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
