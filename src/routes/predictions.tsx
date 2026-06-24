@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import {
@@ -123,26 +123,28 @@ function FixtureRow({
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
+  const isComplete =
+    fixture.predictionHome !== null && fixture.predictionAway !== null;
+
   return (
     <article
       className={[
         "overflow-hidden rounded-3xl border transition-colors",
+        isComplete
+          ? "opacity-60"
+          : "",
         fixture.isJoker
           ? "border-joker/60 bg-gradient-to-br from-joker/15 to-surface"
           : "border-border bg-surface",
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-4 pt-3">
-        <div className="flex items-center gap-1.5">
-          <span className="font-display text-sm text-foreground">
-            {formatKickoff(fixture.kickoff)}
-          </span>
-          {fixture.predictionHome !== null && fixture.predictionAway !== null && (
-            <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-success text-success-foreground">
-              <Check className="h-3 w-3" />
-            </span>
-          )}
-        </div>
+        <span
+          className="font-display text-sm text-foreground"
+          suppressHydrationWarning
+        >
+          {formatKickoff(fixture.kickoff)}
+        </span>
         <button
           onClick={onJoker}
           className={[
@@ -198,21 +200,39 @@ function ScoreInput({
   onChange: (v: string) => void;
   label: string;
 }) {
+  const [saved, setSaved] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/[^0-9]/g, "");
+    onChange(v);
+    setSaved(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setSaved(false), 1500);
+  };
+
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      maxLength={2}
-      aria-label={label}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
-      placeholder="–"
-      className={[
-        "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
-        "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
-        "placeholder:text-muted-foreground/40",
-      ].join(" ")}
-    />
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={2}
+        aria-label={label}
+        value={value ?? ""}
+        onChange={handleChange}
+        placeholder="–"
+        className={[
+          "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
+          "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
+          "placeholder:text-muted-foreground/40",
+        ].join(" ")}
+      />
+      {saved && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-success text-success-foreground shadow-sm">
+          <Check className="h-3 w-3" />
+        </span>
+      )}
+    </div>
   );
 }
