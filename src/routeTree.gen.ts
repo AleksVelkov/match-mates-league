@@ -15,7 +15,6 @@ import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
 import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
 import { Route as ProtectedPredictionsRouteImport } from './routes/_protected/predictions'
-import { Route as ProtectedLeaderboardRouteImport } from './routes/_protected/leaderboard'
 import { Route as ProtectedAdminIndexRouteImport } from './routes/_protected/admin/index'
 import { Route as ProtectedAdminGroupIdRouteImport } from './routes/_protected/admin/$groupId'
 
@@ -48,11 +47,6 @@ const ProtectedPredictionsRoute = ProtectedPredictionsRouteImport.update({
   path: '/predictions',
   getParentRoute: () => ProtectedRoute,
 } as any)
-const ProtectedLeaderboardRoute = ProtectedLeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => ProtectedRoute,
-} as any)
 const ProtectedAdminIndexRoute = ProtectedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -68,7 +62,6 @@ export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
   '/login': typeof LoginRoute
   '/superadmin': typeof SuperadminRoute
-  '/leaderboard': typeof ProtectedLeaderboardRoute
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
@@ -77,7 +70,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/superadmin': typeof SuperadminRoute
-  '/leaderboard': typeof ProtectedLeaderboardRoute
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/': typeof ProtectedIndexRoute
@@ -89,7 +81,6 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/login': typeof LoginRoute
   '/superadmin': typeof SuperadminRoute
-  '/_protected/leaderboard': typeof ProtectedLeaderboardRoute
   '/_protected/predictions': typeof ProtectedPredictionsRoute
   '/_protected/profile': typeof ProtectedProfileRoute
   '/_protected/': typeof ProtectedIndexRoute
@@ -102,7 +93,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/superadmin'
-    | '/leaderboard'
     | '/predictions'
     | '/profile'
     | '/admin/$groupId'
@@ -111,7 +101,6 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/superadmin'
-    | '/leaderboard'
     | '/predictions'
     | '/profile'
     | '/'
@@ -122,7 +111,6 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/login'
     | '/superadmin'
-    | '/_protected/leaderboard'
     | '/_protected/predictions'
     | '/_protected/profile'
     | '/_protected/'
@@ -180,13 +168,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedPredictionsRouteImport
       parentRoute: typeof ProtectedRoute
     }
-    '/_protected/leaderboard': {
-      id: '/_protected/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/leaderboard'
-      preLoaderRoute: typeof ProtectedLeaderboardRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
     '/_protected/admin/': {
       id: '/_protected/admin/'
       path: '/admin'
@@ -205,7 +186,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProtectedRouteChildren {
-  ProtectedLeaderboardRoute: typeof ProtectedLeaderboardRoute
   ProtectedPredictionsRoute: typeof ProtectedPredictionsRoute
   ProtectedProfileRoute: typeof ProtectedProfileRoute
   ProtectedIndexRoute: typeof ProtectedIndexRoute
@@ -214,7 +194,6 @@ interface ProtectedRouteChildren {
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
-  ProtectedLeaderboardRoute: ProtectedLeaderboardRoute,
   ProtectedPredictionsRoute: ProtectedPredictionsRoute,
   ProtectedProfileRoute: ProtectedProfileRoute,
   ProtectedIndexRoute: ProtectedIndexRoute,

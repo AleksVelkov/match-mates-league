@@ -1,29 +1,39 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
-import { getMyGroups, createGroup, joinGroup } from "@/api/groups";
-import { Crown, ChevronRight, Plus, Hash, Users } from "lucide-react";
-import { COMPETITION_CODES } from "@/lib/football-data";
+import { getMyGroups, getAvailableLeagues, createGroup, joinGroup } from "@/api/groups";
+import { Crown, ChevronRight, Plus, Hash } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/admin/")({
   head: () => ({ meta: [{ title: "ScorIQ — Admin" }] }),
-  loader: () => getMyGroups(),
+  loader: async () => {
+    const [groups, leagues] = await Promise.all([getMyGroups(), getAvailableLeagues()]);
+    return { groups, leagues };
+  },
   component: AdminIndexPage,
 });
 
-const COMPETITIONS = Object.keys(COMPETITION_CODES);
-
 function AdminIndexPage() {
-  const groups = Route.useLoaderData();
+  const { groups, leagues } = Route.useLoaderData();
   const { me } = Route.useRouteContext();
   const navigate = useNavigate();
 
   const [sheet, setSheet] = useState<"create" | "join" | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+
+  // Open the join sheet pre-filled when arriving via a shared invite link (?join=CODE).
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("join");
+    if (code) {
+      setJoinCode(code.toUpperCase());
+      setSheet("join");
+    }
+  }, []);
 
   return (
     <AppShell>
       <ScreenHeader
-        eyebrow="Admin"
+        eyebrow="Groups"
         title="My Groups"
         right={
           <button
@@ -78,12 +88,14 @@ function AdminIndexPage() {
 
       {sheet === "create" && (
         <CreateGroupSheet
+          leagues={leagues}
           onClose={() => setSheet(null)}
           onCreated={(id) => navigate({ to: "/admin/$groupId", params: { groupId: id } })}
         />
       )}
       {sheet === "join" && (
         <JoinGroupSheet
+          initialCode={joinCode}
           onClose={() => setSheet(null)}
           onJoined={(id) => navigate({ to: "/admin/$groupId", params: { groupId: id } })}
         />
@@ -119,15 +131,17 @@ function EmptyState({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => 
 }
 
 function CreateGroupSheet({
+  leagues,
   onClose,
   onCreated,
 }: {
+  leagues: string[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("⚽");
-  const [competition, setCompetition] = useState("Premier League");
+  const [competition, setCompetition] = useState(leagues[0] ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -144,10 +158,38 @@ function CreateGroupSheet({
     }
   }
 
+  if (leagues.length === 0) {
+    return (
+      <Overlay onClose={onClose}>
+        <h2 className="font-display text-2xl">Create a group</h2>
+        <p className="mt-4 rounded-xl bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          No leagues are available right now. Check back once an admin publishes one.
+        </p>
+      </Overlay>
+    );
+  }
+
   return (
     <Overlay onClose={onClose}>
       <h2 className="font-display text-2xl">Create a group</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Pick a league and name your group — then share the invite link with friends.
+      </p>
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <Field label="League">
+          <select
+            value={competition}
+            onChange={(e) => setCompetition(e.target.value)}
+            className="input-base"
+          >
+            {leagues.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+
         <Field label="Group name">
           <input
             type="text"
@@ -170,19 +212,9 @@ function CreateGroupSheet({
           />
         </Field>
 
-        <Field label="Competition">
-          <select
-            value={competition}
-            onChange={(e) => setCompetition(e.target.value)}
-            className="input-base"
-          >
-            {COMPETITIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-
-        {error && <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">{error}</p>
+        )}
 
         <button
           type="submit"
@@ -197,13 +229,15 @@ function CreateGroupSheet({
 }
 
 function JoinGroupSheet({
+  initialCode = "",
   onClose,
   onJoined,
 }: {
+  initialCode?: string;
   onClose: () => void;
   onJoined: (id: string) => void;
 }) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,7 +269,9 @@ function JoinGroupSheet({
           />
         </Field>
 
-        {error && <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">{error}</p>
+        )}
 
         <button
           type="submit"

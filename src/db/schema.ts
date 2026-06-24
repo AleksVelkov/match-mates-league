@@ -21,14 +21,18 @@ export const session = sqliteTable("session", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
 });
 
 export const account = sqliteTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
@@ -58,51 +62,87 @@ export const groups = sqliteTable("groups", {
   description: text("description"),
   competition: text("competition").notNull().default("Premier League"),
   inviteCode: text("invite_code").notNull().unique(),
-  ownerId: text("owner_id").notNull().references(() => user.id),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => user.id),
   round: integer("round").notNull().default(1),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-export const groupMembers = sqliteTable("group_members", {
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  joinedAt: integer("joined_at", { mode: "timestamp" }).notNull(),
-}, (t) => [primaryKey({ columns: [t.groupId, t.userId] })]);
+export const groupMembers = sqliteTable(
+  "group_members",
+  {
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    joinedAt: integer("joined_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.groupId, t.userId] })],
+);
 
-export const fixtures = sqliteTable("fixtures", {
-  id: text("id").primaryKey(),
-  groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-  competition: text("competition").notNull(),
-  round: integer("round").notNull(),
-  home: text("home").notNull(),
-  homeShort: text("home_short").notNull(),
-  away: text("away").notNull(),
-  awayShort: text("away_short").notNull(),
-  kickoffAt: integer("kickoff_at", { mode: "timestamp" }).notNull(),
-  status: text("status", { enum: ["upcoming", "live", "finished"] }).notNull().default("upcoming"),
-  resultHome: integer("result_home"),
-  resultAway: integer("result_away"),
-  externalId: text("external_id"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-});
+// Central, league-scoped matches. Managed by the super admin and shared by all groups
+// playing that competition (no per-group copies).
+export const fixtures = sqliteTable(
+  "fixtures",
+  {
+    id: text("id").primaryKey(),
+    competition: text("competition").notNull(),
+    round: integer("round").notNull(),
+    home: text("home").notNull(),
+    homeShort: text("home_short").notNull(),
+    away: text("away").notNull(),
+    awayShort: text("away_short").notNull(),
+    kickoffAt: integer("kickoff_at", { mode: "timestamp" }).notNull(),
+    status: text("status", { enum: ["upcoming", "live", "finished"] })
+      .notNull()
+      .default("upcoming"),
+    resultHome: integer("result_home"),
+    resultAway: integer("result_away"),
+    externalId: text("external_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [uniqueIndex("fixtures_competition_external_idx").on(t.competition, t.externalId)],
+);
 
-export const predictions = sqliteTable("predictions", {
-  id: text("id").primaryKey(),
-  fixtureId: text("fixture_id").notNull().references(() => fixtures.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  scoreHome: integer("score_home"),
-  scoreAway: integer("score_away"),
-  isJoker: integer("is_joker", { mode: "boolean" }).notNull().default(false),
-  pointsEarned: integer("points_earned"),
-  submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
-}, (t) => [uniqueIndex("predictions_fixture_user_idx").on(t.fixtureId, t.userId)]);
+// Predictions are scoped per group, so the same user can predict the same central
+// fixture differently in different groups.
+export const predictions = sqliteTable(
+  "predictions",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    fixtureId: text("fixture_id")
+      .notNull()
+      .references(() => fixtures.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    scoreHome: integer("score_home"),
+    scoreAway: integer("score_away"),
+    isJoker: integer("is_joker", { mode: "boolean" }).notNull().default(false),
+    pointsEarned: integer("points_earned"),
+    submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [uniqueIndex("predictions_group_fixture_user_idx").on(t.groupId, t.fixtureId, t.userId)],
+);
 
-export const achievements = sqliteTable("achievements", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  achievementKey: text("achievement_key").notNull(),
-  unlockedAt: integer("unlocked_at", { mode: "timestamp" }).notNull(),
-}, (t) => [uniqueIndex("achievements_user_key_idx").on(t.userId, t.achievementKey)]);
+export const achievements = sqliteTable(
+  "achievements",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    achievementKey: text("achievement_key").notNull(),
+    unlockedAt: integer("unlocked_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [uniqueIndex("achievements_user_key_idx").on(t.userId, t.achievementKey)],
+);
 
 export const config = sqliteTable("config", {
   key: text("key").primaryKey(),
@@ -114,7 +154,7 @@ export const config = sqliteTable("config", {
 export const groupsRelations = relations(groups, ({ one, many }) => ({
   owner: one(user, { fields: [groups.ownerId], references: [user.id] }),
   members: many(groupMembers),
-  fixtures: many(fixtures),
+  predictions: many(predictions),
 }));
 
 export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
@@ -122,12 +162,12 @@ export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
   user: one(user, { fields: [groupMembers.userId], references: [user.id] }),
 }));
 
-export const fixturesRelations = relations(fixtures, ({ one, many }) => ({
-  group: one(groups, { fields: [fixtures.groupId], references: [groups.id] }),
+export const fixturesRelations = relations(fixtures, ({ many }) => ({
   predictions: many(predictions),
 }));
 
 export const predictionsRelations = relations(predictions, ({ one }) => ({
+  group: one(groups, { fields: [predictions.groupId], references: [groups.id] }),
   fixture: one(fixtures, { fields: [predictions.fixtureId], references: [fixtures.id] }),
   user: one(user, { fields: [predictions.userId], references: [user.id] }),
 }));
