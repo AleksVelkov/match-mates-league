@@ -123,26 +123,28 @@ function FixtureRow({
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
+  const isComplete =
+    fixture.predictionHome !== null && fixture.predictionAway !== null;
+
   return (
     <article
       className={[
         "overflow-hidden rounded-3xl border transition-colors",
+        isComplete
+          ? "opacity-60"
+          : "",
         fixture.isJoker
           ? "border-joker/60 bg-gradient-to-br from-joker/15 to-surface"
           : "border-border bg-surface",
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-4 pt-3">
-        <div className="flex items-center gap-1.5">
-          <span className="font-display text-sm text-foreground">
-            {formatKickoff(fixture.kickoff)}
-          </span>
-          {fixture.predictionHome !== null && fixture.predictionAway !== null && (
-            <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-success text-success-foreground">
-              <Check className="h-3 w-3" />
-            </span>
-          )}
-        </div>
+        <span
+          className="font-display text-sm text-foreground"
+          suppressHydrationWarning
+        >
+          {formatKickoff(fixture.kickoff)}
+        </span>
         <button
           onClick={onJoker}
           className={[
