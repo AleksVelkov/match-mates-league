@@ -9,7 +9,7 @@
 #   4. Set the SCORIQ_SECRET env var in Pages dashboard → Settings → Environment variables
 #
 name = "scoriq"
-pages_build_output_dir = ".output/public"
+pages_build_output_dir = "dist"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
