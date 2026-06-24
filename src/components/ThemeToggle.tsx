@@ -16,7 +16,14 @@ function apply(theme: Theme) {
   root.classList.toggle("dark", theme === "dark");
 }
 
-export function ThemeToggle() {
+/**
+ * Blocking script applied in <head> before paint so the stored theme is in
+ * effect on first render of any page (avoids a flash + works regardless of
+ * which route loads first). Keep in sync with apply()/getInitial() above.
+ */
+export const themeInitScript = `try{var t=localStorage.getItem('${KEY}')||'dark';var c=document.documentElement.classList;c.toggle('light',t==='light');c.toggle('dark',t==='dark');}catch(e){}`;
+
+export function useTheme() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [mounted, setMounted] = useState(false);
 
@@ -34,17 +41,19 @@ export function ThemeToggle() {
     window.localStorage.setItem(KEY, next);
   };
 
+  return { theme, toggle, mounted };
+}
+
+export function ThemeToggle() {
+  const { theme, toggle, mounted } = useTheme();
+
   return (
     <button
       onClick={toggle}
       aria-label="Toggle theme"
       className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-surface/80 text-foreground backdrop-blur-xl transition-colors hover:bg-surface-2"
     >
-      {mounted && theme === "dark" ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
+      {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
   );
 }

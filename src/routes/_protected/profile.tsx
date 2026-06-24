@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
-import { NoGroup } from "@/components/NoGroup";
-import { getMe } from "@/api/auth";
+import { useTheme } from "@/components/ThemeToggle";
+import { getMe, signOut } from "@/api/auth";
 import { getMyGroups } from "@/api/groups";
 import { getLeaderboard } from "@/api/leaderboard";
-import { Check, Copy, Flame, Settings, Share2, Target, Trophy } from "lucide-react";
+import { Check, Copy, Flame, LogOut, Moon, Share2, Sun, Target, Trophy, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/profile")({
   head: () => ({
@@ -50,11 +50,14 @@ const ACHIEVEMENTS: Array<{
 
 function ProfilePage() {
   const { me, group, stats } = Route.useLoaderData();
+  const router = useRouter();
+  const { theme, toggle, mounted } = useTheme();
   const name = me?.name ?? "You";
   const points = stats?.points ?? 0;
   const streak = stats?.streak ?? 0;
   const exact = stats?.exact ?? 0;
   const [copied, setCopied] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   function copyInvite() {
     if (!group) return;
@@ -64,18 +67,22 @@ function ProfilePage() {
     });
   }
 
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+      await router.navigate({ to: "/login" });
+      router.invalidate();
+    } catch {
+      setSigningOut(false);
+    }
+  }
+
   return (
     <AppShell>
-      <ScreenHeader
-        title="Profile"
-        right={
-          <button className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
-            <Settings className="h-4 w-4" />
-          </button>
-        }
-      />
+      <ScreenHeader title="Profile" />
 
-      {/* Identity */}
+      {/* Identity — always shown */}
       <section className="px-5">
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-5">
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-primary font-display text-2xl text-primary-foreground shadow-glow">
@@ -83,15 +90,69 @@ function ProfilePage() {
           </div>
           <div className="min-w-0">
             <h2 className="truncate font-display text-3xl leading-none">{name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 truncate text-sm text-muted-foreground">
               {group ? `${group.emoji} ${group.name}` : me?.email}
             </p>
           </div>
         </div>
       </section>
 
+      {/* Settings — always shown */}
+      <section className="mt-4 px-5">
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+          <button
+            onClick={toggle}
+            className="flex w-full items-center justify-between border-b border-border px-4 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              {mounted && theme === "dark" ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
+              <span className="text-sm font-semibold">Appearance</span>
+            </div>
+            <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+              {mounted ? (theme === "dark" ? "Dark" : "Light") : ""}
+              <span
+                className={[
+                  "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+                  theme === "light" ? "bg-primary" : "bg-muted/40",
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+                    theme === "light" ? "translate-x-[22px]" : "translate-x-0.5",
+                  ].join(" ")}
+                />
+              </span>
+            </span>
+          </button>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="flex w-full items-center gap-3 px-4 py-4 text-left text-sm font-semibold text-destructive disabled:opacity-60"
+          >
+            <LogOut className="h-5 w-5" />
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
+      </section>
+
       {!group ? (
-        <NoGroup note="Join or create a group to start tracking your stats and achievements." />
+        <section className="mt-4 px-5">
+          <div className="rounded-3xl border border-border bg-surface p-5 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+              <Users className="h-6 w-6" />
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              You're not in a group yet. Join or create one to start tracking stats and achievements.
+            </p>
+            <Link
+              to="/admin"
+              className="mt-4 inline-grid w-full place-items-center rounded-2xl bg-primary py-3 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow"
+            >
+              Go to Admin
+            </Link>
+          </div>
+        </section>
       ) : (
         <>
           {/* Stat grid */}

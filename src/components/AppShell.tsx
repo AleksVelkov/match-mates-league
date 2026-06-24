@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Home, Target, Trophy, User, ShieldCheck } from "lucide-react";
-import { ThemeToggle } from "./ThemeToggle";
 
 const tabs: ReadonlyArray<{ to: "/" | "/predictions" | "/leaderboard" | "/profile" | "/admin"; label: string; icon: typeof Home; exact?: boolean }> = [
   { to: "/", label: "Home", icon: Home, exact: true },
@@ -16,9 +15,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-background">
-      <div className="fixed right-3 top-3 z-50 sm:right-[max(0.75rem,calc(50%-220px+0.75rem))]">
-        <ThemeToggle />
-      </div>
       <main className="flex-1 pb-28">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
