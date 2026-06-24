@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { groups, groupMembers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { getEnabledCompetitions, getCurrentRound } from "@/lib/leagues";
 
 function generateInviteCode(name: string): string {
   const prefix = name
@@ -16,6 +17,13 @@ function generateInviteCode(name: string): string {
   return `${prefix}-${suffix}`;
 }
 
+/** Leagues the super admin has made available for end users to create groups in. */
+export const getAvailableLeagues = createServerFn({ method: "GET" }).handler(async () => {
+  await requireUser();
+  const db = getDb();
+  return getEnabledCompetitions(db);
+});
+
 export const getMyGroups = createServerFn({ method: "GET" }).handler(async () => {
   const user = await requireUser();
   const db = getDb();
@@ -26,7 +34,13 @@ export const getMyGroups = createServerFn({ method: "GET" }).handler(async () =>
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
     .where(eq(groupMembers.userId, user.id));
 
-  return rows.map((r) => r.group);
+  // Round is league-level now: resolve each group's active round from the league.
+  return Promise.all(
+    rows.map(async (r) => ({
+      ...r.group,
+      round: await getCurrentRound(db, r.group.competition),
+    })),
+  );
 });
 
 export const getGroup = createServerFn({ method: "GET" })
@@ -35,11 +49,7 @@ export const getGroup = createServerFn({ method: "GET" })
     const user = await requireUser();
     const db = getDb();
 
-    const [group] = await db
-      .select()
-      .from(groups)
-      .where(eq(groups.id, data.groupId))
-      .limit(1);
+    const [group] = await db.select().from(groups).where(eq(groups.id, data.groupId)).limit(1);
 
     if (!group) throw new Error("Group not found");
 
@@ -56,7 +66,9 @@ export const getGroup = createServerFn({ method: "GET" })
       .from(groupMembers)
       .where(eq(groupMembers.groupId, data.groupId));
 
-    return { ...group, memberCount: members.length };
+    const round = await getCurrentRound(db, group.competition);
+
+    return { ...group, round, memberCount: members.length };
   });
 
 export const createGroup = createServerFn({ method: "POST" })
@@ -66,11 +78,17 @@ export const createGroup = createServerFn({ method: "POST" })
       emoji: z.string().default("⚽"),
       description: z.string().max(200).optional(),
       competition: z.string().default("Premier League"),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     const user = await requireUser();
     const db = getDb();
+
+    // Only allow leagues the super admin has made available.
+    const enabled = await getEnabledCompetitions(db);
+    if (!enabled.includes(data.competition)) {
+      throw new Error("That league isn't available. Pick one from the list.");
+    }
 
     const id = crypto.randomUUID();
     const inviteCode = generateInviteCode(data.name);

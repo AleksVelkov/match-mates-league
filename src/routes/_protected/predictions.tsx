@@ -53,7 +53,14 @@ function PredictionsPage() {
     );
   }
 
-  return <PredictionsView group={data.group} fixtures={data.fixtures} myPreds={data.myPreds} router={router} />;
+  return (
+    <PredictionsView
+      group={data.group}
+      fixtures={data.fixtures}
+      myPreds={data.myPreds}
+      router={router}
+    />
+  );
 }
 
 function PredictionsView({
@@ -70,14 +77,16 @@ function PredictionsView({
     kickoffAt: string | Date;
     status: "upcoming" | "live" | "finished";
   }>;
-  myPreds: Array<{ fixtureId: string; scoreHome: number | null; scoreAway: number | null; isJoker: boolean }>;
+  myPreds: Array<{
+    fixtureId: string;
+    scoreHome: number | null;
+    scoreAway: number | null;
+    isJoker: boolean;
+  }>;
   router: ReturnType<typeof useRouter>;
 }) {
   const now = Date.now();
-  const predMap = useMemo(
-    () => new Map(myPreds.map((p) => [p.fixtureId, p])),
-    [myPreds],
-  );
+  const predMap = useMemo(() => new Map(myPreds.map((p) => [p.fixtureId, p])), [myPreds]);
 
   const initial: Row[] = useMemo(
     () =>
@@ -106,7 +115,9 @@ function PredictionsView({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitted = fixtures.filter((f) => f.predictionHome !== null && f.predictionAway !== null).length;
+  const submitted = fixtures.filter(
+    (f) => f.predictionHome !== null && f.predictionAway !== null,
+  ).length;
   const total = fixtures.length;
   const jokerId = useMemo(() => fixtures.find((f) => f.isJoker)?.id ?? null, [fixtures]);
 
@@ -123,9 +134,7 @@ function PredictionsView({
   };
 
   const toggleJoker = (id: string) => {
-    setFixtures((arr) =>
-      arr.map((f) => ({ ...f, isJoker: f.id === id ? !f.isJoker : false })),
-    );
+    setFixtures((arr) => arr.map((f) => ({ ...f, isJoker: f.id === id ? !f.isJoker : false })));
     setSaved(false);
   };
 
@@ -135,14 +144,18 @@ function PredictionsView({
     setSaved(false);
     try {
       const payload = fixtures
-        .filter((f) => !f.locked && (f.predictionHome !== null || f.predictionAway !== null || f.isJoker))
+        .filter(
+          (f) => !f.locked && (f.predictionHome !== null || f.predictionAway !== null || f.isJoker),
+        )
         .map((f) => ({
           fixtureId: f.id,
           scoreHome: f.predictionHome,
           scoreAway: f.predictionAway,
           isJoker: f.isJoker,
         }));
-      await savePredictions({ data: { groupId: group.id, round: group.round, predictions: payload } });
+      await savePredictions({
+        data: { groupId: group.id, round: group.round, predictions: payload },
+      });
       setSaved(true);
       router.invalidate();
     } catch (e) {
@@ -154,15 +167,12 @@ function PredictionsView({
 
   return (
     <AppShell>
-      <ScreenHeader
-        eyebrow={`${group.competition} · Round ${group.round}`}
-        title="Predict"
-      />
+      <ScreenHeader eyebrow={`${group.competition} · Round ${group.round}`} title="Predict" />
 
       {total === 0 ? (
         <section className="px-5 pt-2">
           <div className="rounded-3xl border border-border bg-surface p-6 text-center text-sm text-muted-foreground">
-            No fixtures for this round yet. The group owner can sync them from the Admin tab.
+            No matches published for this round yet. Check back soon.
           </div>
         </section>
       ) : (
@@ -212,7 +222,15 @@ function PredictionsView({
               disabled={saving}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
             >
-              {saved ? <><Check className="h-5 w-5" /> Saved</> : saving ? "Saving…" : "Submit round"}
+              {saved ? (
+                <>
+                  <Check className="h-5 w-5" /> Saved
+                </>
+              ) : saving ? (
+                "Saving…"
+              ) : (
+                "Submit round"
+              )}
             </button>
             {error && <p className="mt-2 text-center text-[11px] text-destructive">{error}</p>}
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -247,8 +265,7 @@ function FixtureRow({
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
-  const isComplete =
-    fixture.predictionHome !== null && fixture.predictionAway !== null;
+  const isComplete = fixture.predictionHome !== null && fixture.predictionAway !== null;
   const [editingSide, setEditingSide] = useState<"home" | "away" | null>(null);
 
   return (
@@ -262,12 +279,13 @@ function FixtureRow({
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-4 pt-3">
-        <span
-          className="font-display text-sm text-foreground"
-          suppressHydrationWarning
-        >
+        <span className="font-display text-sm text-foreground" suppressHydrationWarning>
           {formatKickoff(fixture.kickoff)}
-          {fixture.locked && <span className="ml-2 text-[10px] uppercase tracking-widest text-muted-foreground">Locked</span>}
+          {fixture.locked && (
+            <span className="ml-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+              Locked
+            </span>
+          )}
         </span>
         <button
           onClick={onJoker}

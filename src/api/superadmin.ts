@@ -1,10 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { user, groups, groupMembers, fixtures, predictions, config } from "@/db/schema";
+import { user, groups, fixtures, predictions } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
+import { scoreFixture } from "@/lib/scoring";
+import { fetchMatchday, mapStatus, COMPETITION_CODES } from "@/lib/football-data";
+import {
+  getEnabledCompetitions as readEnabledCompetitions,
+  setEnabledCompetitions as writeEnabledCompetitions,
+  getCurrentRound,
+  setCurrentRound,
+} from "@/lib/leagues";
 
 async function requireSuperAdmin() {
   const env = getEnvStore();
@@ -49,7 +57,7 @@ export const getAllGroups = createServerFn({ method: "GET" }).handler(async () =
       ownerName: user.name,
       ownerEmail: user.email,
       memberCount: sql<number>`(SELECT COUNT(*) FROM group_members WHERE group_members.group_id = ${groups.id})`,
-      fixtureCount: sql<number>`(SELECT COUNT(*) FROM fixtures WHERE fixtures.group_id = ${groups.id})`,
+      fixtureCount: sql<number>`(SELECT COUNT(*) FROM fixtures WHERE fixtures.competition = ${groups.competition})`,
     })
     .from(groups)
     .innerJoin(user, eq(groups.ownerId, user.id))
@@ -80,8 +88,7 @@ export const getAllUsers = createServerFn({ method: "GET" }).handler(async () =>
 export const getEnabledCompetitions = createServerFn({ method: "GET" }).handler(async () => {
   await requireSuperAdmin();
   const db = getDb();
-  const [row] = await db.select().from(config).where(eq(config.key, "enabled_competitions")).limit(1);
-  return row ? (JSON.parse(row.value) as string[]) : [];
+  return readEnabledCompetitions(db);
 });
 
 export const setEnabledCompetitions = createServerFn({ method: "POST" })
@@ -89,9 +96,144 @@ export const setEnabledCompetitions = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireSuperAdmin();
     const db = getDb();
-    await db
-      .insert(config)
-      .values({ key: "enabled_competitions", value: JSON.stringify(data.competitions) })
-      .onConflictDoUpdate({ target: config.key, set: { value: JSON.stringify(data.competitions) } });
+    await writeEnabledCompetitions(db, data.competitions);
+    return { ok: true };
+  });
+
+// ─── Central match management ───────────────────────────────────────────────
+
+/** The active/published round per enabled competition (for the dashboard). */
+export const getCurrentRounds = createServerFn({ method: "GET" }).handler(async () => {
+  await requireSuperAdmin();
+  const db = getDb();
+  const enabled = await readEnabledCompetitions(db);
+  const entries = await Promise.all(
+    enabled.map(async (c) => [c, await getCurrentRound(db, c)] as const),
+  );
+  return Object.fromEntries(entries) as Record<string, number>;
+});
+
+/** List the central fixtures for a competition + round (super admin view). */
+export const getCompetitionFixtures = createServerFn({ method: "GET" })
+  .validator(z.object({ competition: z.string(), round: z.number().int().min(1) }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+    return db
+      .select()
+      .from(fixtures)
+      .where(and(eq(fixtures.competition, data.competition), eq(fixtures.round, data.round)))
+      .orderBy(fixtures.kickoffAt);
+  });
+
+/**
+ * Sync a competition matchday from football-data.org into the central fixtures
+ * table. Finished matches with a result are auto-scored. Publishes the synced
+ * matchday as the competition's active round.
+ */
+export const syncCompetition = createServerFn({ method: "POST" })
+  .validator(z.object({ competition: z.string(), matchday: z.number().int().min(1) }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const code = COMPETITION_CODES[data.competition];
+    if (!code) throw new Error(`No API code for competition "${data.competition}"`);
+
+    const { matches, rateLimit } = await fetchMatchday(code, data.matchday);
+
+    let upserted = 0;
+    for (const m of matches) {
+      const externalId = String(m.id);
+      const status = mapStatus(m.status) as "upcoming" | "live" | "finished";
+      const resultHome = m.score.fullTime.home ?? null;
+      const resultAway = m.score.fullTime.away ?? null;
+
+      const [existing] = await db
+        .select({ id: fixtures.id })
+        .from(fixtures)
+        .where(and(eq(fixtures.competition, data.competition), eq(fixtures.externalId, externalId)))
+        .limit(1);
+
+      let fixtureId: string;
+      if (existing) {
+        fixtureId = existing.id;
+        await db
+          .update(fixtures)
+          .set({
+            status,
+            resultHome,
+            resultAway,
+            kickoffAt: new Date(m.utcDate),
+            round: m.matchday,
+          })
+          .where(eq(fixtures.id, fixtureId));
+      } else {
+        fixtureId = crypto.randomUUID();
+        await db.insert(fixtures).values({
+          id: fixtureId,
+          competition: data.competition,
+          round: m.matchday,
+          home: m.homeTeam.name,
+          homeShort: m.homeTeam.tla,
+          away: m.awayTeam.name,
+          awayShort: m.awayTeam.tla,
+          kickoffAt: new Date(m.utcDate),
+          status,
+          resultHome,
+          resultAway,
+          externalId,
+          createdAt: new Date(),
+        });
+        upserted++;
+      }
+
+      // Auto-score finished matches across every group predicting them.
+      if (status === "finished" && resultHome !== null && resultAway !== null) {
+        await scoreFixture(db, fixtureId, resultHome, resultAway);
+      }
+    }
+
+    await setCurrentRound(db, data.competition, data.matchday);
+
+    return {
+      synced: matches.length,
+      new: upserted,
+      requestsRemainingThisMinute: rateLimit.requestsAvailableMinute,
+      rateLimitResetsInSeconds: rateLimit.counterResetSeconds,
+    };
+  });
+
+/** Manually set/correct a match result (super admin override). Re-scores predictions. */
+export const setMatchResult = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      fixtureId: z.string(),
+      resultHome: z.number().int().min(0),
+      resultAway: z.number().int().min(0),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const [fixture] = await db
+      .select({ id: fixtures.id })
+      .from(fixtures)
+      .where(eq(fixtures.id, data.fixtureId))
+      .limit(1);
+    if (!fixture) throw new Error("Match not found");
+
+    await scoreFixture(db, data.fixtureId, data.resultHome, data.resultAway);
+    return { ok: true };
+  });
+
+/** Override which round end users currently see for a competition. */
+export const setActiveRound = createServerFn({ method: "POST" })
+  .validator(z.object({ competition: z.string(), round: z.number().int().min(1) }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+    await setCurrentRound(db, data.competition, data.round);
     return { ok: true };
   });

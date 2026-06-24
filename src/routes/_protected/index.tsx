@@ -64,9 +64,10 @@ function HomePage() {
   const total = fixtures.length;
 
   const now = Date.now();
-  const nextKickoff = [...fixtures]
-    .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
-    .find((f) => new Date(f.kickoffAt).getTime() > now) ?? fixtures[0];
+  const nextKickoff =
+    [...fixtures]
+      .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
+      .find((f) => new Date(f.kickoffAt).getTime() > now) ?? fixtures[0];
 
   const meRow = standings.find((s) => s.isMe);
   const top3 = standings.slice(0, 3);
@@ -153,16 +154,33 @@ function HomePage() {
 
       {/* Quick stats */}
       <section className="grid grid-cols-3 gap-2 px-5 pt-5">
-        <StatCard label="Streak" value={`${meRow?.streak ?? 0}`} icon={<Flame className="h-4 w-4" />} accent />
-        <StatCard label="Points" value={`${meRow?.points ?? 0}`} icon={<Trophy className="h-4 w-4" />} />
-        <StatCard label="Exact" value={`${meRow?.exact ?? 0}`} icon={<Target className="h-4 w-4" />} />
+        <StatCard
+          label="Streak"
+          value={`${meRow?.streak ?? 0}`}
+          icon={<Flame className="h-4 w-4" />}
+          accent
+        />
+        <StatCard
+          label="Points"
+          value={`${meRow?.points ?? 0}`}
+          icon={<Trophy className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Exact"
+          value={`${meRow?.exact ?? 0}`}
+          icon={<Target className="h-4 w-4" />}
+        />
       </section>
 
       {/* Top 3 standings */}
       <section className="px-5 pt-6">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-display text-xl">Standings</h3>
-          <Link to="/leaderboard" className="text-xs font-semibold uppercase tracking-widest text-primary">
+          <Link
+            to="/admin/$groupId"
+            params={{ groupId: group.id }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary"
+          >
             View all
           </Link>
         </div>
@@ -209,7 +227,12 @@ function StatCard({
       <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         {icon} {label}
       </div>
-      <div className={["mt-1 font-display text-3xl leading-none", accent ? "text-joker" : "text-foreground"].join(" ")}>
+      <div
+        className={[
+          "mt-1 font-display text-3xl leading-none",
+          accent ? "text-joker" : "text-foreground",
+        ].join(" ")}
+      >
         {value}
       </div>
     </div>

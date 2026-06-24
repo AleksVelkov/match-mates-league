@@ -25,15 +25,18 @@ export const getLeaderboard = createServerFn({ method: "GET" })
         userId: user.id,
         name: user.name,
         totalPoints: sql<number>`COALESCE(SUM(${predictions.pointsEarned}), 0)`.as("total_points"),
-        exactCount: sql<number>`COALESCE(SUM(CASE WHEN ${predictions.scoreHome} = ${fixtures.resultHome} AND ${predictions.scoreAway} = ${fixtures.resultAway} AND ${fixtures.resultHome} IS NOT NULL THEN 1 ELSE 0 END), 0)`.as("exact_count"),
+        exactCount:
+          sql<number>`COALESCE(SUM(CASE WHEN ${predictions.scoreHome} = ${fixtures.resultHome} AND ${predictions.scoreAway} = ${fixtures.resultAway} AND ${fixtures.resultHome} IS NOT NULL THEN 1 ELSE 0 END), 0)`.as(
+            "exact_count",
+          ),
       })
       .from(groupMembers)
       .innerJoin(user, eq(groupMembers.userId, user.id))
-      .leftJoin(predictions, eq(predictions.userId, user.id))
-      .leftJoin(fixtures, and(
-        eq(predictions.fixtureId, fixtures.id),
-        eq(fixtures.groupId, data.groupId)
-      ))
+      .leftJoin(
+        predictions,
+        and(eq(predictions.userId, user.id), eq(predictions.groupId, data.groupId)),
+      )
+      .leftJoin(fixtures, eq(predictions.fixtureId, fixtures.id))
       .where(eq(groupMembers.groupId, data.groupId))
       .groupBy(user.id, user.name)
       .orderBy(sql`total_points DESC`);
@@ -48,9 +51,12 @@ export const getLeaderboard = createServerFn({ method: "GET" })
           .innerJoin(fixtures, eq(predictions.fixtureId, fixtures.id))
           .where(
             and(
-              eq(fixtures.groupId, data.groupId),
-              sql`${predictions.userId} IN (${sql.join(memberIds.map((id) => sql`${id}`), sql`, `)})`
-            )
+              eq(predictions.groupId, data.groupId),
+              sql`${predictions.userId} IN (${sql.join(
+                memberIds.map((id) => sql`${id}`),
+                sql`, `,
+              )})`,
+            ),
           )
           .orderBy(fixtures.kickoffAt)
       : [];

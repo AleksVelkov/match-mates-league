@@ -1,13 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Home, Target, Trophy, User, ShieldCheck } from "lucide-react";
+import { Home, Target, User, UsersRound } from "lucide-react";
 
-const tabs: ReadonlyArray<{ to: "/" | "/predictions" | "/leaderboard" | "/profile" | "/admin"; label: string; icon: typeof Home; exact?: boolean }> = [
+const tabs: ReadonlyArray<{
+  to: "/" | "/predictions" | "/profile" | "/admin";
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+}> = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/predictions", label: "Predict", icon: Target },
-  { to: "/leaderboard", label: "Ranks", icon: Trophy },
+  { to: "/admin", label: "Groups", icon: UsersRound },
   { to: "/profile", label: "Profile", icon: User },
-  { to: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -19,7 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
         <div className="mx-3 mb-3 w-full max-w-[420px] rounded-3xl border border-border bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl">
-          <ul className="grid grid-cols-5">
+          <ul className="grid grid-cols-4">
             {tabs.map((t) => {
               const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
               const Icon = t.icon;
