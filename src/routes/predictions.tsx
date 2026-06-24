@@ -197,10 +197,14 @@ function FixtureRow({
 function ScoreInput({
   value,
   onChange,
+  onFocus,
+  onBlur,
   label,
 }: {
   value: number | null;
   onChange: (v: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   label: string;
 }) {
   const [saved, setSaved] = useState(false);
@@ -224,6 +228,8 @@ function ScoreInput({
         aria-label={label}
         value={value ?? ""}
         onChange={handleChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         placeholder="–"
         className={[
           "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
