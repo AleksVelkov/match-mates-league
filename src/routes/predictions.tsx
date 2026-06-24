@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import {
