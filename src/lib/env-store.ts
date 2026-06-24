@@ -2,8 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 export type Env = {
   DB: D1Database;
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
+  SCORIQ_SECRET: string;
+  FOOTBALL_DATA_API_KEY: string;
 };
 
 // Stores the Cloudflare env per-request via AsyncLocalStorage.
