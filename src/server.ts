@@ -2,7 +2,6 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { cfEnvStorage, type Env } from "./lib/env-store";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -40,20 +39,18 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    // Wrap every request in the Cloudflare env AsyncLocalStorage context so
-    // server functions can access D1 bindings via getEnvStore().
-    return cfEnvStorage.run(env as Env, async () => {
-      try {
-        const handler = await getServerEntry();
-        const response = await handler.fetch(request, env, ctx);
-        return await normalizeCatastrophicSsrResponse(response);
-      } catch (error) {
-        console.error(error);
-        return new Response(renderErrorPage(), {
-          status: 500,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
-      }
-    });
+    // Cloudflare bindings are read via the `cloudflare:workers` `env` import
+    // (see src/lib/env-store.ts), so no per-request env plumbing is needed here.
+    try {
+      const handler = await getServerEntry();
+      const response = await handler.fetch(request, env, ctx);
+      return await normalizeCatastrophicSsrResponse(response);
+    } catch (error) {
+      console.error(error);
+      return new Response(renderErrorPage(), {
+        status: 500,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
   },
 };

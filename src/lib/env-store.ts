@@ -1,4 +1,10 @@
-import { AsyncLocalStorage } from "node:async_hooks";
+// Cloudflare bindings + env vars.
+//
+// We read these from the `cloudflare:workers` module, which Cloudflare provides
+// natively in production (external module) and Nitro shims in dev (reads __env__).
+// This binding is a live reference — it MUST only be read inside a request
+// (server function / loader), never at module top-level.
+import { env as cfEnv } from "cloudflare:workers";
 
 export type Env = {
   DB: D1Database;
@@ -7,13 +13,9 @@ export type Env = {
   SUPER_ADMIN_EMAIL: string;
 };
 
-// Stores the Cloudflare env per-request via AsyncLocalStorage.
-// Populated in src/server.ts at request entry, consumed anywhere server-side.
-export const cfEnvStorage = new AsyncLocalStorage<Env>();
-
 export function getEnvStore(): Env {
-  const env = cfEnvStorage.getStore();
-  if (!env) {
+  const env = cfEnv as unknown as Env;
+  if (!env?.DB) {
     throw new Error(
       "Cloudflare env not available. Run the app with `npm run dev:wrangler` for D1 access."
     );

@@ -9,105 +9,238 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PredictionsRouteImport } from './routes/predictions'
-import { Route as LeaderboardRouteImport } from './routes/leaderboard'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as SuperadminRouteImport } from './routes/superadmin'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProtectedRouteImport } from './routes/_protected'
+import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
+import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
+import { Route as ProtectedPredictionsRouteImport } from './routes/_protected/predictions'
+import { Route as ProtectedLeaderboardRouteImport } from './routes/_protected/leaderboard'
+import { Route as ProtectedAdminIndexRouteImport } from './routes/_protected/admin/index'
+import { Route as ProtectedAdminGroupIdRouteImport } from './routes/_protected/admin/$groupId'
 
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+const SuperadminRoute = SuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PredictionsRoute = PredictionsRouteImport.update({
-  id: '/predictions',
-  path: '/predictions',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const ProtectedIndexRoute = ProtectedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedPredictionsRoute = ProtectedPredictionsRouteImport.update({
+  id: '/predictions',
+  path: '/predictions',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedLeaderboardRoute = ProtectedLeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedAdminIndexRoute = ProtectedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedAdminGroupIdRoute = ProtectedAdminGroupIdRouteImport.update({
+  id: '/admin/$groupId',
+  path: '/admin/$groupId',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/leaderboard': typeof LeaderboardRoute
-  '/predictions': typeof PredictionsRoute
-  '/profile': typeof ProfileRoute
+  '/': typeof ProtectedIndexRoute
+  '/login': typeof LoginRoute
+  '/superadmin': typeof SuperadminRoute
+  '/leaderboard': typeof ProtectedLeaderboardRoute
+  '/predictions': typeof ProtectedPredictionsRoute
+  '/profile': typeof ProtectedProfileRoute
+  '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/admin/': typeof ProtectedAdminIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/leaderboard': typeof LeaderboardRoute
-  '/predictions': typeof PredictionsRoute
-  '/profile': typeof ProfileRoute
+  '/login': typeof LoginRoute
+  '/superadmin': typeof SuperadminRoute
+  '/leaderboard': typeof ProtectedLeaderboardRoute
+  '/predictions': typeof ProtectedPredictionsRoute
+  '/profile': typeof ProtectedProfileRoute
+  '/': typeof ProtectedIndexRoute
+  '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/admin': typeof ProtectedAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/leaderboard': typeof LeaderboardRoute
-  '/predictions': typeof PredictionsRoute
-  '/profile': typeof ProfileRoute
+  '/_protected': typeof ProtectedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/superadmin': typeof SuperadminRoute
+  '/_protected/leaderboard': typeof ProtectedLeaderboardRoute
+  '/_protected/predictions': typeof ProtectedPredictionsRoute
+  '/_protected/profile': typeof ProtectedProfileRoute
+  '/_protected/': typeof ProtectedIndexRoute
+  '/_protected/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/_protected/admin/': typeof ProtectedAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard' | '/predictions' | '/profile'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/superadmin'
+    | '/leaderboard'
+    | '/predictions'
+    | '/profile'
+    | '/admin/$groupId'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard' | '/predictions' | '/profile'
-  id: '__root__' | '/' | '/leaderboard' | '/predictions' | '/profile'
+  to:
+    | '/login'
+    | '/superadmin'
+    | '/leaderboard'
+    | '/predictions'
+    | '/profile'
+    | '/'
+    | '/admin/$groupId'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/_protected'
+    | '/login'
+    | '/superadmin'
+    | '/_protected/leaderboard'
+    | '/_protected/predictions'
+    | '/_protected/profile'
+    | '/_protected/'
+    | '/_protected/admin/$groupId'
+    | '/_protected/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  LeaderboardRoute: typeof LeaderboardRoute
-  PredictionsRoute: typeof PredictionsRoute
-  ProfileRoute: typeof ProfileRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SuperadminRoute: typeof SuperadminRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/predictions': {
-      id: '/predictions'
-      path: '/predictions'
-      fullPath: '/predictions'
-      preLoaderRoute: typeof PredictionsRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/leaderboard': {
-      id: '/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/leaderboard'
-      preLoaderRoute: typeof LeaderboardRouteImport
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_protected/': {
+      id: '/_protected/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/profile': {
+      id: '/_protected/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProtectedProfileRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/predictions': {
+      id: '/_protected/predictions'
+      path: '/predictions'
+      fullPath: '/predictions'
+      preLoaderRoute: typeof ProtectedPredictionsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/leaderboard': {
+      id: '/_protected/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof ProtectedLeaderboardRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/admin/': {
+      id: '/_protected/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof ProtectedAdminIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/admin/$groupId': {
+      id: '/_protected/admin/$groupId'
+      path: '/admin/$groupId'
+      fullPath: '/admin/$groupId'
+      preLoaderRoute: typeof ProtectedAdminGroupIdRouteImport
+      parentRoute: typeof ProtectedRoute
     }
   }
 }
 
+interface ProtectedRouteChildren {
+  ProtectedLeaderboardRoute: typeof ProtectedLeaderboardRoute
+  ProtectedPredictionsRoute: typeof ProtectedPredictionsRoute
+  ProtectedProfileRoute: typeof ProtectedProfileRoute
+  ProtectedIndexRoute: typeof ProtectedIndexRoute
+  ProtectedAdminGroupIdRoute: typeof ProtectedAdminGroupIdRoute
+  ProtectedAdminIndexRoute: typeof ProtectedAdminIndexRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedLeaderboardRoute: ProtectedLeaderboardRoute,
+  ProtectedPredictionsRoute: ProtectedPredictionsRoute,
+  ProtectedProfileRoute: ProtectedProfileRoute,
+  ProtectedIndexRoute: ProtectedIndexRoute,
+  ProtectedAdminGroupIdRoute: ProtectedAdminGroupIdRoute,
+  ProtectedAdminIndexRoute: ProtectedAdminIndexRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  LeaderboardRoute: LeaderboardRoute,
-  PredictionsRoute: PredictionsRoute,
-  ProfileRoute: ProfileRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SuperadminRoute: SuperadminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
