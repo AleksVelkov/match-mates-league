@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { currentGroup, members } from "@/lib/mock-data";
 import { Flame } from "lucide-react";
@@ -8,42 +7,21 @@ export const Route = createFileRoute("/leaderboard")({
   head: () => ({
     meta: [
       { title: "Pitch — Leaderboard" },
-      { name: "description", content: "Weekly and season standings for your crew." },
+      { name: "description", content: "Standings for your crew." },
     ],
   }),
   component: LeaderboardPage,
 });
 
-type Tab = "weekly" | "season";
-
 function LeaderboardPage() {
-  const [tab, setTab] = useState<Tab>("weekly");
-  const sorted = [...members].sort((a, b) =>
-    tab === "weekly" ? b.weekly - a.weekly : b.points - a.points,
-  );
+  const sorted = [...members].sort((a, b) => b.points - a.points);
 
   return (
     <AppShell>
       <ScreenHeader
-        eyebrow={currentGroup.name}
-        title="Leaderboard"
+        eyebrow={`${currentGroup.name} · Round ${currentGroup.round}`}
+        title="Standings"
       />
-
-      {/* Tab switch */}
-      <div className="mx-5 mb-5 grid grid-cols-2 rounded-2xl border border-border bg-surface p-1">
-        {(["weekly", "season"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={[
-              "rounded-xl py-2.5 font-display text-sm uppercase tracking-wider transition-all",
-              tab === t ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground",
-            ].join(" ")}
-          >
-            {t === "weekly" ? `Round ${currentGroup.round}` : "Season"}
-          </button>
-        ))}
-      </div>
 
       {/* Podium */}
       <section className="px-5">
@@ -64,9 +42,7 @@ function LeaderboardPage() {
                   {m.avatar}
                 </div>
                 <p className="truncate text-xs font-semibold">{m.name}</p>
-                <p className="font-display text-2xl text-primary">
-                  {tab === "weekly" ? m.weekly : m.points}
-                </p>
+                <p className="font-display text-2xl text-primary">{m.points}</p>
                 <div
                   className={[
                     "mt-1 w-full rounded-t-2xl border-t-2",
@@ -114,9 +90,7 @@ function LeaderboardPage() {
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
                   {m.exact}× exact
                 </span>
-                <span className="font-display text-xl text-primary">
-                  {tab === "weekly" ? m.weekly : m.points}
-                </span>
+                <span className="font-display text-xl text-primary">{m.points}</span>
               </li>
             );
           })}

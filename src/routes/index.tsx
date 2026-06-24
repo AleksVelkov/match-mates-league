@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
-import { currentGroup, fixtures, formatCountdown, me, members } from "@/lib/mock-data";
-import { ChevronRight, Flame, Star, Users } from "lucide-react";
+import { Countdown } from "@/components/Countdown";
+import { currentGroup, fixtures, me, members } from "@/lib/mock-data";
+import { ChevronRight, Flame, Target, Trophy, Users } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -18,7 +19,7 @@ function HomePage() {
   const submitted = fixtures.filter((f) => f.predictionHome !== null).length;
   const total = fixtures.length;
   const nextKickoff = fixtures[0];
-  const top3 = [...members].sort((a, b) => b.weekly - a.weekly).slice(0, 3);
+  const top3 = [...members].sort((a, b) => b.points - a.points).slice(0, 3);
 
   return (
     <AppShell>
@@ -87,9 +88,10 @@ function HomePage() {
                   <p className="text-xs text-muted-foreground">Next kickoff</p>
                 </div>
               </div>
-              <div className="rounded-xl bg-primary/15 px-3 py-1.5 font-display text-lg text-primary">
-                {formatCountdown(nextKickoff.kickoff)}
-              </div>
+              <Countdown
+                iso={nextKickoff.kickoff}
+                className="rounded-xl bg-primary/15 px-3 py-1.5 font-display text-lg text-primary"
+              />
             </div>
           )}
 
@@ -102,14 +104,14 @@ function HomePage() {
       {/* Quick stats */}
       <section className="grid grid-cols-3 gap-2 px-5 pt-5">
         <StatCard label="Streak" value={`${me.streak}`} icon={<Flame className="h-4 w-4" />} accent />
-        <StatCard label="Weekly" value={`${me.weekly}`} icon={<Star className="h-4 w-4" />} />
-        <StatCard label="Season" value={`${me.points}`} />
+        <StatCard label="Points" value={`${me.points}`} icon={<Trophy className="h-4 w-4" />} />
+        <StatCard label="Exact" value={`${me.exact}`} icon={<Target className="h-4 w-4" />} />
       </section>
 
-      {/* Weekly top 3 */}
+      {/* Top 3 standings */}
       <section className="px-5 pt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-display text-xl">This Week</h3>
+          <h3 className="font-display text-xl">Standings</h3>
           <Link to="/leaderboard" className="text-xs font-semibold uppercase tracking-widest text-primary">
             View all
           </Link>
@@ -127,7 +129,7 @@ function HomePage() {
                 {m.avatar}
               </span>
               <span className="truncate text-sm font-semibold">{m.name}</span>
-              <span className="font-display text-xl text-primary">{m.weekly}</span>
+              <span className="font-display text-xl text-primary">{m.points}</span>
             </li>
           ))}
         </ul>
