@@ -26,10 +26,10 @@ function LeaderboardPage() {
       {/* Podium */}
       <section className="px-5">
         <div className="grid grid-cols-3 items-end gap-2">
-          {[1, 0, 2].map((idx) => {
-            const m = sorted[idx];
-            if (!m) return <div key={idx} />;
-            const place = idx + 1;
+          {[1, 0, 2].map((sortedIdx, podiumIdx) => {
+            const m = sorted[sortedIdx];
+            if (!m) return <div key={sortedIdx} />;
+            const place = sortedIdx + 1;
             const heights = ["h-28", "h-36", "h-24"];
             const colors = [
               "bg-gradient-to-b from-primary/40 to-primary/10 border-primary",
@@ -46,8 +46,8 @@ function LeaderboardPage() {
                 <div
                   className={[
                     "mt-1 w-full rounded-t-2xl border-t-2",
-                    heights[idx === 1 ? 1 : idx === 0 ? 0 : 2],
-                    colors[idx === 1 ? 1 : idx === 0 ? 0 : 2],
+                    heights[podiumIdx],
+                    colors[podiumIdx],
                   ].join(" ")}
                 >
                   <div className="grid h-full place-items-center font-display text-3xl text-foreground">
