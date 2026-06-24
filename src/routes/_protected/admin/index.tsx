@@ -251,10 +251,10 @@ function JoinGroupSheet({
 
 function Overlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-w-[440px] rounded-t-3xl border-t border-border bg-background p-6 pb-10"
+        className="relative z-10 max-h-[85vh] w-full max-w-[400px] overflow-y-auto rounded-3xl border border-border bg-background p-6 shadow-card"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
