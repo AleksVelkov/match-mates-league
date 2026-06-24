@@ -29,7 +29,7 @@ function LeaderboardPage() {
           {[1, 0, 2].map((sortedIdx, podiumIdx) => {
             const m = sorted[sortedIdx];
             if (!m) return <div key={sortedIdx} />;
-            const place = podiumIdx + 1;
+            const place = sortedIdx + 1;
             const heights = ["h-28", "h-36", "h-24"];
             const colors = [
               "bg-gradient-to-b from-primary/40 to-primary/10 border-primary",
