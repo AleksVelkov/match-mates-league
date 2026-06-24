@@ -12,4 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // cloudflare-pages preset outputs _worker.js + static assets to .output/public/
+  // Set Build output directory to ".output/public" in Cloudflare Pages settings.
+  nitro: {
+    preset: "cloudflare-pages",
+  },
 });

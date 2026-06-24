@@ -8,7 +8,7 @@ import { ChevronRight, Flame, Target, Trophy, Users } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Pitch — Home" },
+      { title: "ScorIQ — Home" },
       { name: "description", content: "Your active prediction round at a glance." },
     ],
   }),

@@ -6,7 +6,7 @@ import { Copy, Flame, Settings, Share2, Target, Trophy } from "lucide-react";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Pitch — Profile" },
+      { title: "ScorIQ — Profile" },
       { name: "description", content: "Your streaks, achievements, and group invites." },
     ],
   }),

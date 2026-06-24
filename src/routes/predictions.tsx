@@ -12,7 +12,7 @@ import { Star } from "lucide-react";
 export const Route = createFileRoute("/predictions")({
   head: () => ({
     meta: [
-      { title: "Pitch — Predictions" },
+      { title: "ScorIQ — Predictions" },
       { name: "description", content: "Predict every fixture in this round." },
     ],
   }),

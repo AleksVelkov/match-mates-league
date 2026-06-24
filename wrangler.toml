@@ -1,0 +1,24 @@
+# Cloudflare Pages configuration
+# This file is used both for local development (wrangler dev) and production.
+#
+# SETUP CHECKLIST (one-time):
+#   1. Run: npx wrangler d1 create scoriq-db
+#   2. Copy the returned database_id into this file (replace the placeholder below)
+#   3. In Cloudflare Pages dashboard → Settings → Functions → D1 database bindings:
+#      Binding name: DB  →  Database: scoriq-db
+#   4. Set the SCORIQ_SECRET env var in Pages dashboard → Settings → Environment variables
+#
+name = "scoriq"
+pages_build_output_dir = ".output/public"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "scoriq-db"
+# TODO: replace with real ID after `npx wrangler d1 create scoriq-db`
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+# Override SCORIQ_SECRET in the Pages dashboard with a long random string
+SCORIQ_SECRET = "change-me-before-deploying"

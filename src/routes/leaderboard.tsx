@@ -6,7 +6,7 @@ import { Flame } from "lucide-react";
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
     meta: [
-      { title: "Pitch — Leaderboard" },
+      { title: "ScorIQ — Leaderboard" },
       { name: "description", content: "Standings for your crew." },
     ],
   }),
