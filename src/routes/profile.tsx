@@ -53,7 +53,7 @@ function ProfilePage() {
         <div className="grid grid-cols-1 gap-2">
           <StreakRow emoji="🔥" label="Correct winners in a row" value="7" />
           <StreakRow emoji="🎯" label="Exact scores this season" value="14" />
-          <StreakRow emoji="🏆" label="Weekly wins" value="3" />
+          <StreakRow emoji="⭐" label="Successful Jokers" value="3" />
         </div>
       </section>
 
