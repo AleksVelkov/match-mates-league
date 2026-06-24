@@ -18,5 +18,7 @@ binding = "DB"
 database_name = "scoriq-db"
 database_id = "604cce8b-21d8-47b5-a8eb-93c9c4534ac2"
 
-# Environment variables (SCORIQ_SECRET, FOOTBALL_DATA_API_KEY) are set in
-# Cloudflare Pages dashboard → Settings → Environment variables — not here.
+# Environment variables are set in Cloudflare Pages dashboard → Settings → Environment variables:
+#   SCORIQ_SECRET         — long random string for session signing
+#   FOOTBALL_DATA_API_KEY — your football-data.org token
+#   SUPER_ADMIN_EMAIL     — email address that can access /superadmin

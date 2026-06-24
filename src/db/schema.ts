@@ -104,6 +104,11 @@ export const achievements = sqliteTable("achievements", {
   unlockedAt: integer("unlocked_at", { mode: "timestamp" }).notNull(),
 }, (t) => [uniqueIndex("achievements_user_key_idx").on(t.userId, t.achievementKey)]);
 
+export const config = sqliteTable("config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

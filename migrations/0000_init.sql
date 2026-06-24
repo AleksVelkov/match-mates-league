@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS `achievements` (
   UNIQUE (`user_id`, `achievement_key`)
 );
 
+-- Super admin config
+CREATE TABLE IF NOT EXISTS `config` (
+  `key` TEXT PRIMARY KEY,
+  `value` TEXT NOT NULL
+);
+INSERT OR IGNORE INTO `config` (`key`, `value`) VALUES (
+  'enabled_competitions',
+  '["Premier League","Champions League","Europa League","La Liga","Bundesliga","Serie A","Ligue 1","Eredivisie","Primeira Liga","Championship"]'
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS `idx_group_members_user` ON `group_members`(`user_id`);
 CREATE INDEX IF NOT EXISTS `idx_fixtures_group_round` ON `fixtures`(`group_id`, `round`);

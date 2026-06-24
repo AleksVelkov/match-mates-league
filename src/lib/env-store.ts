@@ -4,6 +4,7 @@ export type Env = {
   DB: D1Database;
   SCORIQ_SECRET: string;
   FOOTBALL_DATA_API_KEY: string;
+  SUPER_ADMIN_EMAIL: string;
 };
 
 // Stores the Cloudflare env per-request via AsyncLocalStorage.
