@@ -88,7 +88,7 @@ function SuperAdminPage() {
       <ScreenHeader eyebrow="Super Admin" title="Dashboard" />
 
       {/* Tab bar */}
-      <div className="flex gap-1 overflow-x-auto px-5 pb-4 no-scrollbar">
+      <div className="flex flex-wrap gap-2 px-5 pb-4">
         {(["overview", "matches", "groups", "users", "competitions"] as const).map((t) => (
           <button
             key={t}
