@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import {
@@ -7,7 +7,7 @@ import {
   fixtures as initialFixtures,
   type Fixture,
 } from "@/lib/mock-data";
-import { Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 
 export const Route = createFileRoute("/predictions")({
   head: () => ({
@@ -123,17 +123,25 @@ function FixtureRow({
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
+  const isComplete =
+    fixture.predictionHome !== null && fixture.predictionAway !== null;
+  const [editingSide, setEditingSide] = useState<"home" | "away" | null>(null);
+
   return (
     <article
       className={[
         "overflow-hidden rounded-3xl border transition-colors",
+        isComplete && !editingSide ? "opacity-60" : "",
         fixture.isJoker
           ? "border-joker/60 bg-gradient-to-br from-joker/15 to-surface"
           : "border-border bg-surface",
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-4 pt-3">
-        <span className="font-display text-sm text-foreground">
+        <span
+          className="font-display text-sm text-foreground"
+          suppressHydrationWarning
+        >
           {formatKickoff(fixture.kickoff)}
         </span>
         <button
@@ -162,12 +170,16 @@ function FixtureRow({
           <ScoreInput
             value={fixture.predictionHome}
             onChange={(v) => onScore("home", v)}
+            onFocus={() => setEditingSide("home")}
+            onBlur={() => setEditingSide((s) => (s === "home" ? null : s))}
             label={`${fixture.homeShort} score`}
           />
           <span className="font-display text-2xl text-muted-foreground/60">:</span>
           <ScoreInput
             value={fixture.predictionAway}
             onChange={(v) => onScore("away", v)}
+            onFocus={() => setEditingSide("away")}
+            onBlur={() => setEditingSide((s) => (s === "away" ? null : s))}
             label={`${fixture.awayShort} score`}
           />
         </div>
@@ -185,27 +197,51 @@ function FixtureRow({
 function ScoreInput({
   value,
   onChange,
+  onFocus,
+  onBlur,
   label,
 }: {
   value: number | null;
   onChange: (v: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   label: string;
 }) {
+  const [saved, setSaved] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/[^0-9]/g, "");
+    onChange(v);
+    setSaved(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setSaved(false), 1500);
+  };
+
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      maxLength={2}
-      aria-label={label}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
-      placeholder="–"
-      className={[
-        "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
-        "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
-        "placeholder:text-muted-foreground/40",
-      ].join(" ")}
-    />
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={2}
+        aria-label={label}
+        value={value ?? ""}
+        onChange={handleChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        placeholder="–"
+        className={[
+          "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
+          "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
+          "placeholder:text-muted-foreground/40",
+        ].join(" ")}
+      />
+      {saved && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-success text-success-foreground shadow-sm">
+          <Check className="h-3 w-3" />
+        </span>
+      )}
+    </div>
   );
 }

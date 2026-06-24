@@ -84,6 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Predict scores, climb the leaderboard, chase streaks. Built for your crew." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "ScorIQ — Football Predictions with Friends" },
+      { name: "twitter:description", content: "Private football prediction leagues for you and your crew. No strangers, no betting." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/736a9cad-b3c3-4854-9f04-2546d2f444cb/id-preview-b692963f--39945423-8b1f-4afd-8d3e-9facc771dd1f.lovable.app-1782297074121.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/736a9cad-b3c3-4854-9f04-2546d2f444cb/id-preview-b692963f--39945423-8b1f-4afd-8d3e-9facc771dd1f.lovable.app-1782297074121.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
