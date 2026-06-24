@@ -7,7 +7,7 @@ import {
   fixtures as initialFixtures,
   type Fixture,
 } from "@/lib/mock-data";
-import { Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 
 export const Route = createFileRoute("/predictions")({
   head: () => ({
