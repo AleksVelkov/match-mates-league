@@ -59,9 +59,13 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="font-display text-5xl tracking-wider text-primary">ScorIQ</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+        <div className="mb-8 flex flex-col items-center">
+          <img
+            src="/logo.png"
+            alt="ScorIQ"
+            className="h-32 w-32 object-contain drop-shadow-[0_0_24px_rgba(132,204,22,0.35)]"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">
             Football predictions with your crew
           </p>
         </div>
