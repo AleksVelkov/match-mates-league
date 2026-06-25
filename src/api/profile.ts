@@ -94,7 +94,6 @@ export const getAvatarUploadUrl = createServerFn({ method: "POST" })
         method: "PUT",
         headers: {
           "Content-Type": data.contentType,
-          "x-amz-acl": "public-read",
         },
       }),
       { aws: { signQuery: true } },

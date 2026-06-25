@@ -330,7 +330,7 @@ function AvatarUpload({ image, name, onUploaded }: { image: string | null; name:
       const { uploadUrl, publicUrl } = await getAvatarUploadUrl({
         data: { filename: file.name, contentType: file.type },
       });
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type, "x-amz-acl": "public-read" } });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
       await saveAvatarUrl({ data: { url: publicUrl } });
       onUploaded();
     } catch (err) {
