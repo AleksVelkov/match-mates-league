@@ -252,8 +252,8 @@ function ManageSheet({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
-        <div className="flex max-h-[88vh] w-full max-w-[440px] flex-col rounded-t-3xl border-t border-x border-border bg-surface shadow-card animate-in slide-in-from-bottom duration-250">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="flex max-h-[82vh] w-full max-w-[440px] flex-col rounded-3xl border border-border bg-surface shadow-card animate-in fade-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-border">
             <p className="font-display text-xl">Manage group</p>

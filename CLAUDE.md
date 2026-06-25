@@ -5,6 +5,7 @@
 - **Do not run local instances of the app for testing.** No `npm run dev`, `wrangler dev`, or any dev server. Verify changes with `npm run build` (type check + bundle).
 - **Do not open or inspect Google Chrome / browser DevTools** unless the user explicitly asks.
 - **Commit after every requested change** with a focused, descriptive message. Always add the `Co-Authored-By` trailer.
+- **No bottom pop-ups / bottom sheets — ever.** All modals, dialogs, confirmation sheets, and overlays must be centered on screen (`fixed inset-0 flex items-center justify-center`). The only element allowed to live at the bottom is the persistent navigation bar and the standings drawer (which is a permanent fixture, not a pop-up).
 
 ## Stack
 
