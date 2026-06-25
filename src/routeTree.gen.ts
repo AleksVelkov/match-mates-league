@@ -16,6 +16,7 @@ import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
 import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
 import { Route as ProtectedPredictionsRouteImport } from './routes/_protected/predictions'
 import { Route as ProtectedAdminIndexRouteImport } from './routes/_protected/admin/index'
+import { Route as AuthCallbackGoogleRouteImport } from './routes/auth/callback/google'
 import { Route as ProtectedAdminGroupIdRouteImport } from './routes/_protected/admin/$groupId'
 
 const SuperadminRoute = SuperadminRouteImport.update({
@@ -52,6 +53,11 @@ const ProtectedAdminIndexRoute = ProtectedAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const AuthCallbackGoogleRoute = AuthCallbackGoogleRouteImport.update({
+  id: '/auth/callback/google',
+  path: '/auth/callback/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProtectedAdminGroupIdRoute = ProtectedAdminGroupIdRouteImport.update({
   id: '/admin/$groupId',
   path: '/admin/$groupId',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/admin/': typeof ProtectedAdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProtectedProfileRoute
   '/': typeof ProtectedIndexRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/admin': typeof ProtectedAdminIndexRoute
 }
 export interface FileRoutesById {
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/_protected/profile': typeof ProtectedProfileRoute
   '/_protected/': typeof ProtectedIndexRoute
   '/_protected/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/_protected/admin/': typeof ProtectedAdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/predictions'
     | '/profile'
     | '/admin/$groupId'
+    | '/auth/callback/google'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/'
     | '/admin/$groupId'
+    | '/auth/callback/google'
     | '/admin'
   id:
     | '__root__'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/_protected/profile'
     | '/_protected/'
     | '/_protected/admin/$groupId'
+    | '/auth/callback/google'
     | '/_protected/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -122,6 +134,7 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   LoginRoute: typeof LoginRoute
   SuperadminRoute: typeof SuperadminRoute
+  AuthCallbackGoogleRoute: typeof AuthCallbackGoogleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAdminIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/auth/callback/google': {
+      id: '/auth/callback/google'
+      path: '/auth/callback/google'
+      fullPath: '/auth/callback/google'
+      preLoaderRoute: typeof AuthCallbackGoogleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_protected/admin/$groupId': {
       id: '/_protected/admin/$groupId'
       path: '/admin/$groupId'
@@ -209,6 +229,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   LoginRoute: LoginRoute,
   SuperadminRoute: SuperadminRoute,
+  AuthCallbackGoogleRoute: AuthCallbackGoogleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

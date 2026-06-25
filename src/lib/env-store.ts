@@ -18,6 +18,10 @@ export type Env = {
   DO_SPACES_BUCKET: string;
   DO_SPACES_ENDPOINT: string; // e.g. https://ams3.digitaloceanspaces.com
   DO_SPACES_REGION: string;   // e.g. ams3
+  // Google OAuth — required for "Sign in with Google".
+  // Create credentials at console.cloud.google.com → APIs & Services → Credentials.
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
 };
 
 export function getEnvStore(): Env {
