@@ -63,10 +63,15 @@ function HomePage() {
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary font-display text-lg text-primary-foreground shadow-glow">
             {initials(name)}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
             <p className="truncate font-display text-2xl leading-none">Hey, {name}</p>
           </div>
+          <img
+            src="/logo.png"
+            alt="ScorIQ"
+            className="h-10 w-10 shrink-0 object-contain opacity-90"
+          />
         </div>
       </header>
 

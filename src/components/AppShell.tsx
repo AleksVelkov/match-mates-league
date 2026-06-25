@@ -80,7 +80,10 @@ export function ScreenHeader({
         )}
         <h1 className="truncate font-display text-4xl leading-none">{title}</h1>
       </div>
-      {right && <div className="shrink-0">{right}</div>}
+      <div className="flex shrink-0 items-center gap-2">
+        {right}
+        <img src="/logo.png" alt="ScorIQ" className="h-9 w-9 object-contain opacity-80" />
+      </div>
     </header>
   );
 }
