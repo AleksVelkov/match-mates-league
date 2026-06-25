@@ -209,8 +209,8 @@ function ShareSheet({
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
-        <div className="w-full max-w-[440px] px-3 pb-6 pt-3">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-[400px]">
           <div className="rounded-3xl border border-border bg-surface p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between">
               <p className="font-display text-xl">Invite friends</p>
@@ -301,7 +301,7 @@ function StandingsDrawer({
           onClick={onToggle}
         />
       )}
-      <div className="fixed inset-x-0 bottom-[82px] z-40 flex justify-center px-3">
+      <div className="fixed inset-x-0 bottom-[104px] z-40 flex justify-center px-3">
         <div className="w-full max-w-[440px]">
           <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
             <button
