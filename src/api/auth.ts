@@ -95,7 +95,7 @@ export const signOut = createServerFn({ method: "POST" }).handler(async () => {
 export const getMe = createServerFn({ method: "GET" }).handler(async () => {
   const s = await getSession();
   if (!s) return null;
-  return { id: s.user.id, name: s.user.name, email: s.user.email };
+  return { id: s.user.id, name: s.user.name, email: s.user.email, image: s.user.image ?? null };
 });
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────

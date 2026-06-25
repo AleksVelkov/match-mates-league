@@ -60,8 +60,10 @@ function HomePage() {
       {/* Greeting */}
       <header className="px-5 pt-10 pb-6">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary font-display text-lg text-primary-foreground shadow-glow">
-            {initials(name)}
+          <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-primary font-display text-lg text-primary-foreground shadow-glow">
+            {me?.image
+              ? <img src={me.image} alt={name} className="h-full w-full object-cover" />
+              : initials(name)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
