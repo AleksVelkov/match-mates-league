@@ -65,9 +65,12 @@ export const updateMyCountry = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Returns a pre-signed PUT URL for uploading an avatar directly to DO Spaces. */
-export const getAvatarUploadUrl = createServerFn({ method: "POST" })
-  .validator(z.object({ filename: z.string(), contentType: z.string() }))
+/**
+ * Proxy avatar upload: client sends base64 image, server uploads to DO Spaces
+ * and saves the URL — no browser-to-S3 connection, so no CORS needed.
+ */
+export const uploadAvatar = createServerFn({ method: "POST" })
+  .validator(z.object({ filename: z.string(), contentType: z.string(), base64: z.string() }))
   .handler(async ({ data }) => {
     const me = await requireUser();
     const env = getEnvStore();
@@ -76,11 +79,14 @@ export const getAvatarUploadUrl = createServerFn({ method: "POST" })
       throw new Error("Avatar uploads are not configured. Contact the administrator.");
     }
 
+    const binary = atob(data.base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
     const ext = data.filename.split(".").pop() ?? "jpg";
     const key = `avatars/${me.id}/${Date.now()}.${ext}`;
     const endpoint = env.DO_SPACES_ENDPOINT.replace(/\/$/, "");
-    const uploadUrl = `${endpoint}/${env.DO_SPACES_BUCKET}/${key}`;
-    const publicUrl = uploadUrl;
+    const publicUrl = `${endpoint}/${env.DO_SPACES_BUCKET}/${key}`;
 
     const aws = new AwsClient({
       accessKeyId: env.DO_SPACES_KEY,
@@ -89,27 +95,29 @@ export const getAvatarUploadUrl = createServerFn({ method: "POST" })
       service: "s3",
     });
 
-    const signedReq = await aws.sign(
-      new Request(uploadUrl, {
+    // Sign a pre-signed URL (body hash = UNSIGNED-PAYLOAD, avoids streaming issues)
+    const { url: signedUrl } = await aws.sign(
+      new Request(publicUrl, {
         method: "PUT",
-        headers: {
-          "Content-Type": data.contentType,
-        },
+        headers: { "Content-Type": data.contentType, "x-amz-acl": "public-read" },
       }),
       { aws: { signQuery: true } },
     );
 
-    return { uploadUrl: signedReq.url, publicUrl };
-  });
+    // Server-to-server PUT — no CORS
+    const res = await fetch(signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": data.contentType, "x-amz-acl": "public-read" },
+      body: bytes,
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(`Storage upload failed (${res.status}): ${msg}`);
+    }
 
-/** After the client has uploaded the file, save the public URL to user.image. */
-export const saveAvatarUrl = createServerFn({ method: "POST" })
-  .validator(z.object({ url: z.string().url() }))
-  .handler(async ({ data }) => {
-    const me = await requireUser();
     const db = getDb();
-    await db.update(user).set({ image: data.url, updatedAt: new Date() }).where(eq(user.id, me.id));
-    return { ok: true };
+    await db.update(user).set({ image: publicUrl, updatedAt: new Date() }).where(eq(user.id, me.id));
+    return { url: publicUrl };
   });
 
 // ─── Seasons ──────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { useTheme } from "@/components/ThemeToggle";
 import { signOut } from "@/api/auth";
 import { getAvailableLeagues } from "@/api/groups";
-import { getMyProfile, updateMyName, updateMyCountry, getAvatarUploadUrl, saveAvatarUrl, getSeasons, getMySeasonStats } from "@/api/profile";
+import { getMyProfile, updateMyName, updateMyCountry, uploadAvatar, getSeasons, getMySeasonStats } from "@/api/profile";
 import { getFavoriteLeague, setFavoriteLeague } from "@/api/preferences";
 import { Camera, Check, ChevronDown, Flame, LogOut, Moon, Sun, Target, Trophy, X } from "lucide-react";
 
@@ -327,11 +327,13 @@ function AvatarUpload({ image, name, onUploaded }: { image: string | null; name:
     setUploading(true);
     setError(null);
     try {
-      const { uploadUrl, publicUrl } = await getAvatarUploadUrl({
-        data: { filename: file.name, contentType: file.type },
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      await saveAvatarUrl({ data: { url: publicUrl } });
+      await uploadAvatar({ data: { filename: file.name, contentType: file.type, base64 } });
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
