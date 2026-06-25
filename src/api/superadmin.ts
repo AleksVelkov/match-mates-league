@@ -167,6 +167,8 @@ export const syncCompetition = createServerFn({ method: "POST" })
             resultAway,
             kickoffAt: new Date(m.utcDate),
             round: m.matchday,
+            homeCrest: m.homeTeam.crest ?? null,
+            awayCrest: m.awayTeam.crest ?? null,
           })
           .where(eq(fixtures.id, fixtureId));
       } else {
@@ -179,6 +181,8 @@ export const syncCompetition = createServerFn({ method: "POST" })
           homeShort: m.homeTeam.tla,
           away: m.awayTeam.name,
           awayShort: m.awayTeam.tla,
+          homeCrest: m.homeTeam.crest ?? null,
+          awayCrest: m.awayTeam.crest ?? null,
           kickoffAt: new Date(m.utcDate),
           status,
           resultHome,
@@ -247,6 +251,8 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
             homeShort: m.homeTeam.tla,
             away: m.awayTeam.name,
             awayShort: m.awayTeam.tla,
+            homeCrest: m.homeTeam.crest ?? null,
+            awayCrest: m.awayTeam.crest ?? null,
             kickoffAt: new Date(m.utcDate),
             status,
             resultHome,
@@ -262,6 +268,8 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
               resultAway,
               kickoffAt: new Date(m.utcDate),
               round: m.matchday,
+              homeCrest: m.homeTeam.crest ?? null,
+              awayCrest: m.awayTeam.crest ?? null,
             },
           }),
       );

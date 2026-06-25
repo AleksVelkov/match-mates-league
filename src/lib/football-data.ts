@@ -22,8 +22,8 @@ export type FDMatch = {
   matchday: number;
   utcDate: string;
   status: "SCHEDULED" | "TIMED" | "IN_PLAY" | "PAUSED" | "FINISHED" | "POSTPONED" | "CANCELLED";
-  homeTeam: { id: number; name: string; shortName: string; tla: string };
-  awayTeam: { id: number; name: string; shortName: string; tla: string };
+  homeTeam: { id: number; name: string; shortName: string; tla: string; crest?: string };
+  awayTeam: { id: number; name: string; shortName: string; tla: string; crest?: string };
   score: {
     winner: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
     fullTime: { home: number | null; away: number | null };

@@ -58,6 +58,8 @@ type PredRow = {
   id: string;
   homeShort: string;
   awayShort: string;
+  homeCrest: string | null;
+  awayCrest: string | null;
   kickoff: string;
   status: "upcoming" | "live" | "finished";
   resultHome: number | null;
@@ -101,6 +103,8 @@ function AdminGroupPage() {
             id: f.id,
             homeShort: f.homeShort,
             awayShort: f.awayShort,
+            homeCrest: f.homeCrest ?? null,
+            awayCrest: f.awayCrest ?? null,
             kickoff,
             status: f.status,
             resultHome: f.resultHome ?? null,
@@ -450,7 +454,7 @@ function PredictionRow({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
         {/* Home */}
         <div className="flex items-center gap-2 min-w-0">
-          <TeamCrest short={fixture.homeShort} size={36} />
+          <TeamCrest short={fixture.homeShort} crestUrl={fixture.homeCrest} size={36} />
           <p className="truncate text-sm font-semibold">{fixture.homeShort}</p>
         </div>
 
@@ -478,7 +482,7 @@ function PredictionRow({
         {/* Away */}
         <div className="flex items-center justify-end gap-2 min-w-0">
           <p className="truncate text-right text-sm font-semibold">{fixture.awayShort}</p>
-          <TeamCrest short={fixture.awayShort} size={36} />
+          <TeamCrest short={fixture.awayShort} crestUrl={fixture.awayCrest} size={36} />
         </div>
       </div>
     </article>

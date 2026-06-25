@@ -102,6 +102,8 @@ export const fixtures = sqliteTable(
     resultHome: integer("result_home"),
     resultAway: integer("result_away"),
     externalId: text("external_id"),
+    homeCrest: text("home_crest"),
+    awayCrest: text("away_crest"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => [uniqueIndex("fixtures_competition_external_idx").on(t.competition, t.externalId)],

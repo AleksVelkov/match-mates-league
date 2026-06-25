@@ -209,7 +209,7 @@ function MatchCard({ fixture: f }: { fixture: Fixture }) {
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
         <div className="flex items-center gap-2 min-w-0">
-          <TeamCrest short={f.homeShort} size={36} />
+          <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={36} />
           <p className="truncate text-sm font-semibold">{f.homeShort}</p>
         </div>
         <span className="font-display text-2xl text-muted-foreground/60">
@@ -217,7 +217,7 @@ function MatchCard({ fixture: f }: { fixture: Fixture }) {
         </span>
         <div className="flex items-center justify-end gap-2 min-w-0">
           <p className="truncate text-right text-sm font-semibold">{f.awayShort}</p>
-          <TeamCrest short={f.awayShort} size={36} />
+          <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={36} />
         </div>
       </div>
     </li>
