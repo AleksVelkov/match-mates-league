@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AppShell, ScreenHeader } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
@@ -219,57 +219,52 @@ function AdminGroupPage() {
 
   return (
     <AppShell>
-      <ScreenHeader
-        eyebrow={`${group.competition} · Round ${group.round}`}
-        title={`${group.emoji} ${group.name}`}
-        right={
-          <div className="flex items-center gap-2">
+      {/* Group header — nav row above, full-width title below */}
+      <header className="px-5 pb-5 pt-10">
+        {/* Row 1: back (left) · actions + logo (right) */}
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Link
+            to="/admin"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
             {isOwner && (
-              <button
-                onClick={() => setManageOpen(true)}
-                title="Manage group"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
-              >
+              <button onClick={() => setManageOpen(true)} title="Manage group"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
                 <Settings className="h-5 w-5" />
               </button>
             )}
             {siblingCount > 0 && (
-              <button
-                onClick={handleCopyPredictions}
-                disabled={copying}
+              <button onClick={handleCopyPredictions} disabled={copying}
                 title={`Copy predictions to ${siblingCount} other group${siblingCount > 1 ? "s" : ""}`}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface disabled:opacity-50"
-              >
-                {copying ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                ) : (
-                  <CopyPlus className="h-5 w-5" />
-                )}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface disabled:opacity-50">
+                {copying
+                  ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  : <CopyPlus className="h-5 w-5" />}
               </button>
             )}
-            <button
-              onClick={() => setStandingsOpen(true)}
-              title="Standings"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
-            >
+            <button onClick={() => setStandingsOpen(true)} title="Standings"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
               <Trophy className="h-5 w-5" />
             </button>
-            <button
-              onClick={() => setShareOpen(true)}
-              title="Invite friends"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
-            >
+            <button onClick={() => setShareOpen(true)} title="Invite friends"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
               <Share2 className="h-5 w-5" />
             </button>
-            <Link
-              to="/admin"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
+            <img src="/logo.png" alt="ScorIQ" className="h-9 w-9 object-contain opacity-80" />
           </div>
-        }
-      />
+        </div>
+        {/* Row 2: eyebrow + title — full width, no competition from buttons */}
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+          {group.competition} · Round {group.round}
+        </p>
+        <h1 className={[
+          "mt-1 font-display leading-tight",
+          group.name.length > 18 ? "text-3xl" : "text-4xl",
+        ].join(" ")}>{group.emoji} {group.name}</h1>
+      </header>
 
       {/* Copy predictions toast */}
       {copyMsg && (
