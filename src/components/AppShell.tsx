@@ -78,7 +78,10 @@ export function ScreenHeader({
             {eyebrow}
           </p>
         )}
-        <h1 className="truncate font-display text-4xl leading-none">{title}</h1>
+        <h1 className={[
+          "font-display leading-tight",
+          title.length > 24 ? "text-2xl" : title.length > 16 ? "text-3xl" : "text-4xl",
+        ].join(" ")}>{title}</h1>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {right}

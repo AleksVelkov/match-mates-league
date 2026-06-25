@@ -9,16 +9,15 @@ import { getLeaderboard } from "@/api/leaderboard";
 import { getMyPredictions, savePredictions, copyPredictionsToMyGroups } from "@/api/predictions";
 import {
   ChevronLeft,
-  ChevronUp,
   ChevronDown,
   Check,
   Copy,
   Share2,
   CopyPlus,
-  Users,
   Crown,
   Flame,
   Settings,
+  Trophy,
   UserMinus,
   X,
   Save,
@@ -249,6 +248,13 @@ function AdminGroupPage() {
               </button>
             )}
             <button
+              onClick={() => setStandingsOpen(true)}
+              title="Standings"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
+            >
+              <Trophy className="h-5 w-5" />
+            </button>
+            <button
               onClick={() => setShareOpen(true)}
               title="Invite friends"
               className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface"
@@ -334,8 +340,6 @@ function AdminGroupPage() {
           </>
         )}
 
-        {/* Spacer so content clears the standings drawer */}
-        <div className="h-52" aria-hidden />
       </section>
 
       {/* Share modal */}
@@ -362,12 +366,13 @@ function AdminGroupPage() {
         />
       )}
 
-      {/* Standings drawer */}
-      <StandingsDrawer
-        standings={standings}
-        open={standingsOpen}
-        onToggle={() => setStandingsOpen((o) => !o)}
-      />
+      {/* Standings modal */}
+      {standingsOpen && (
+        <StandingsModal
+          standings={standings}
+          onClose={() => setStandingsOpen(false)}
+        />
+      )}
     </AppShell>
   );
 }
@@ -778,70 +783,58 @@ function ShareSheet({
   );
 }
 
-// ─── Standings drawer ─────────────────────────────────────────────────────────
+// ─── Standings modal ──────────────────────────────────────────────────────────
 
 type Standing = Awaited<ReturnType<typeof getLeaderboard>>[number];
 
-function StandingsDrawer({
-  standings,
-  open,
-  onToggle,
-}: {
-  standings: Standing[];
-  open: boolean;
-  onToggle: () => void;
-}) {
+function StandingsModal({ standings, onClose }: { standings: Standing[]; onClose: () => void }) {
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-30 bg-black/20 backdrop-blur-[2px]" onClick={onToggle} />
-      )}
-      <div className="fixed inset-x-0 bottom-32 z-40 flex justify-center px-3">
-        <div className="w-full max-w-[440px]">
-          <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
-            <button onClick={onToggle} className="flex w-full items-center justify-between px-5 py-3.5">
-              <span className="font-display text-base">Standings</span>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                {standings.length} player{standings.length !== 1 ? "s" : ""}
-                {open ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-              </span>
-            </button>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 flex items-center justify-center px-4">
+        <div className="flex max-h-[80vh] w-full max-w-[440px] flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-card animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+            <p className="font-display text-xl">Standings</p>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{standings.length} player{standings.length !== 1 ? "s" : ""}</span>
+              <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-surface">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
 
-            {open && (
-              <div className="max-h-[48vh] overflow-y-auto border-t border-border animate-in slide-in-from-bottom-2 fade-in duration-200">
-                {standings.length === 0 ? (
-                  <p className="px-5 py-6 text-center text-sm text-muted-foreground">
-                    No members yet — share the invite link.
-                  </p>
-                ) : (
-                  <ul>
-                    {standings.map((m) => (
-                      <li
-                        key={m.id}
-                        className={[
-                          "grid grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-border px-4 py-3 last:border-b-0",
-                          m.isMe ? "bg-primary/10" : "",
-                        ].join(" ")}
-                      >
-                        <span className="grid h-7 w-7 place-items-center rounded-full bg-background font-display text-sm text-muted-foreground">{m.rank}</span>
-                        <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
-                          {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : m.avatar}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{m.name}</p>
-                          {m.streak > 0 && (
-                            <p className="flex items-center gap-1 text-[11px] text-joker">
-                              <Flame className="h-3 w-3" /> {m.streak} streak
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{m.exact}× exact</span>
-                        <span className="font-display text-xl text-primary">{m.points}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+          <div className="flex-1 overflow-y-auto">
+            {standings.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                No members yet — share the invite link.
+              </p>
+            ) : (
+              <ul>
+                {standings.map((m) => (
+                  <li
+                    key={m.id}
+                    className={[
+                      "grid grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-border px-4 py-3 last:border-b-0",
+                      m.isMe ? "bg-primary/10" : "",
+                    ].join(" ")}
+                  >
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-background font-display text-sm text-muted-foreground">{m.rank}</span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
+                      {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : m.avatar}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{m.name}</p>
+                      {m.streak > 0 && (
+                        <p className="flex items-center gap-1 text-[11px] text-joker">
+                          <Flame className="h-3 w-3" /> {m.streak} streak
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{m.exact}× exact</span>
+                    <span className="font-display text-xl text-primary">{m.points}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
