@@ -105,15 +105,8 @@ export const getGoogleAuthUrl = createServerFn({ method: "GET" }).handler(async 
   const env = getEnvStore();
   if (!env.GOOGLE_CLIENT_ID) throw new Error("Google OAuth is not configured.");
 
-  // Derive the redirect URI from the incoming request host so the same code
-  // works in both local dev and production without an extra env var.
-  let redirectUri = "http://localhost:8787/auth/callback/google";
-  try {
-    const { getWebRequest } = await import("@tanstack/react-start/server");
-    const req = getWebRequest();
-    const url = new URL(req.url);
-    redirectUri = `${url.protocol}//${url.host}/auth/callback/google`;
-  } catch { /* running outside request context — keep default */ }
+  // Use the explicit env var so the URI always matches Google Cloud Console exactly.
+  const redirectUri = env.GOOGLE_REDIRECT_URI || "http://localhost:8787/auth/callback/google";
 
   const state = crypto.randomUUID();
   // Store state + redirect URI so the callback can verify and reuse them.
@@ -143,8 +136,9 @@ export const exchangeGoogleCode = createServerFn({ method: "POST" })
     const storedState = getCookie("scoriq_oauth_state");
     if (!storedState || storedState !== data.state) throw new Error("Invalid OAuth state — please try again.");
 
-    const redirectUri =
-      getCookie("scoriq_oauth_redirect_uri") ?? "http://localhost:8787/auth/callback/google";
+    const redirectUri = getCookie("scoriq_oauth_redirect_uri")
+      ?? getEnvStore().GOOGLE_REDIRECT_URI
+      ?? "http://localhost:8787/auth/callback/google";
 
     // Clear the one-time cookies
     setCookie("scoriq_oauth_state", "", { maxAge: 0, path: "/" });

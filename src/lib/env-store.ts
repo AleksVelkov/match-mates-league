@@ -22,6 +22,9 @@ export type Env = {
   // Create credentials at console.cloud.google.com → APIs & Services → Credentials.
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  // Must match exactly one of the "Authorized redirect URIs" in Google Cloud Console.
+  // e.g. https://scoriq.app/auth/callback/google
+  GOOGLE_REDIRECT_URI: string;
 };
 
 export function getEnvStore(): Env {
