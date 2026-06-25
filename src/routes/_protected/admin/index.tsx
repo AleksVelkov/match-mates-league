@@ -115,7 +115,7 @@ function EmptyState({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => 
         </p>
         <button
           onClick={onCreate}
-          className="mt-6 w-full rounded-2xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow"
+          className="btn-primary mt-6 w-full rounded-2xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow"
         >
           Create a group
         </button>
@@ -219,7 +219,7 @@ function CreateGroupSheet({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+          className="btn-primary w-full rounded-xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
         >
           {loading ? "Creating…" : "Create group"}
         </button>
@@ -276,7 +276,7 @@ function JoinGroupSheet({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+          className="btn-primary w-full rounded-xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
         >
           {loading ? "Joining…" : "Join group"}
         </button>

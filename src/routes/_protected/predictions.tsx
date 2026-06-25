@@ -220,7 +220,7 @@ function PredictionsView({
             <button
               onClick={handleSubmit}
               disabled={saving}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+              className="btn-primary flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
             >
               {saved ? (
                 <>

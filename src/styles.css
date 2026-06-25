@@ -157,6 +157,58 @@
   }
 }
 
+/* ─── Tap / press feedback ─────────────────────────────────────────────────── */
+@layer base {
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.96);
+    transition: transform 80ms ease-out;
+  }
+
+  a:active {
+    transform: scale(0.97);
+    transition: transform 80ms ease-out;
+  }
+}
+
+/* ─── Shimmer sweep on primary buttons ─────────────────────────────────────── */
+@keyframes btn-shimmer {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to   { transform: translateX(300%)  skewX(-20deg); }
+}
+
+@utility btn-primary {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    width: 35%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, white 25%, transparent),
+      transparent
+    );
+    transform: translateX(-120%) skewX(-20deg);
+    pointer-events: none;
+  }
+
+  &:not(:disabled):active::after {
+    animation: btn-shimmer 0.45s ease forwards;
+  }
+}
+
+/* ─── No scrollbar ──────────────────────────────────────────────────────────── */
 @utility no-scrollbar {
   &::-webkit-scrollbar { display: none; }
   -ms-overflow-style: none;

@@ -210,7 +210,7 @@ function ShareSheet({
         onClick={onClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[400px] animate-in fade-in zoom-in-95 duration-200">
           <div className="rounded-3xl border border-border bg-surface p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between">
               <p className="font-display text-xl">Invite friends</p>
@@ -252,7 +252,7 @@ function ShareSheet({
 
             <button
               onClick={() => copy(link, "link")}
-              className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow"
+              className="btn-primary mb-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow"
             >
               {copied === "link" ? (
                 <>
@@ -301,7 +301,7 @@ function StandingsDrawer({
           onClick={onToggle}
         />
       )}
-      <div className="fixed inset-x-0 bottom-[104px] z-40 flex justify-center px-3">
+      <div className="fixed inset-x-0 bottom-32 z-40 flex justify-center px-3">
         <div className="w-full max-w-[440px]">
           <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
             <button
@@ -320,7 +320,7 @@ function StandingsDrawer({
             </button>
 
             {open && (
-              <div className="max-h-[48vh] overflow-y-auto border-t border-border">
+              <div className="max-h-[48vh] overflow-y-auto border-t border-border animate-in slide-in-from-bottom-2 fade-in duration-200">
                 {standings.length === 0 ? (
                   <p className="px-5 py-6 text-center text-sm text-muted-foreground">
                     No members yet — share the invite link.
