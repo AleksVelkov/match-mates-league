@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SuperadminRouteImport } from './routes/superadmin'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
@@ -20,9 +22,19 @@ import { Route as AuthCallbackGoogleRouteImport } from './routes/auth/callback/g
 import { Route as ProtectedTeamTeamIdRouteImport } from './routes/_protected/team/$teamId'
 import { Route as ProtectedAdminGroupIdRouteImport } from './routes/_protected/admin/$groupId'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
   path: '/superadmin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -73,7 +85,9 @@ const ProtectedAdminGroupIdRoute = ProtectedAdminGroupIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
+  '/terms': typeof TermsRoute
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
@@ -83,7 +97,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
+  '/terms': typeof TermsRoute
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/': typeof ProtectedIndexRoute
@@ -96,7 +112,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_protected': typeof ProtectedRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
+  '/terms': typeof TermsRoute
   '/_protected/predictions': typeof ProtectedPredictionsRoute
   '/_protected/profile': typeof ProtectedProfileRoute
   '/_protected/': typeof ProtectedIndexRoute
@@ -110,7 +128,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/privacy-policy'
     | '/superadmin'
+    | '/terms'
     | '/predictions'
     | '/profile'
     | '/admin/$groupId'
@@ -120,7 +140,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/privacy-policy'
     | '/superadmin'
+    | '/terms'
     | '/predictions'
     | '/profile'
     | '/'
@@ -132,7 +154,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_protected'
     | '/login'
+    | '/privacy-policy'
     | '/superadmin'
+    | '/terms'
     | '/_protected/predictions'
     | '/_protected/profile'
     | '/_protected/'
@@ -145,17 +169,33 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SuperadminRoute: typeof SuperadminRoute
+  TermsRoute: typeof TermsRoute
   AuthCallbackGoogleRoute: typeof AuthCallbackGoogleRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/superadmin': {
       id: '/superadmin'
       path: '/superadmin'
       fullPath: '/superadmin'
       preLoaderRoute: typeof SuperadminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -249,7 +289,9 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   LoginRoute: LoginRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
   SuperadminRoute: SuperadminRoute,
+  TermsRoute: TermsRoute,
   AuthCallbackGoogleRoute: AuthCallbackGoogleRoute,
 }
 export const routeTree = rootRouteImport
