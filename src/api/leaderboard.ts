@@ -24,6 +24,7 @@ export const getLeaderboard = createServerFn({ method: "GET" })
       .select({
         userId: user.id,
         name: user.name,
+        image: user.image,
         totalPoints: sql<number>`COALESCE(SUM(${predictions.pointsEarned}), 0)`.as("total_points"),
         exactCount:
           sql<number>`COALESCE(SUM(CASE WHEN ${predictions.scoreHome} = ${fixtures.resultHome} AND ${predictions.scoreAway} = ${fixtures.resultAway} AND ${fixtures.resultHome} IS NOT NULL THEN 1 ELSE 0 END), 0)`.as(
@@ -79,6 +80,7 @@ export const getLeaderboard = createServerFn({ method: "GET" })
       rank: i + 1,
       id: r.userId,
       name: r.name,
+      image: r.image ?? null,
       avatar: r.name
         .split(" ")
         .map((w: string) => w[0]?.toUpperCase() ?? "")

@@ -172,7 +172,7 @@ export const getGroupMembers = createServerFn({ method: "GET" })
     if (!membership.length) throw new Error("Not a member of this group");
 
     const rows = await db
-      .select({ id: user.id, name: user.name, email: user.email, joinedAt: groupMembers.joinedAt })
+      .select({ id: user.id, name: user.name, email: user.email, image: user.image, joinedAt: groupMembers.joinedAt })
       .from(groupMembers)
       .innerJoin(user, eq(groupMembers.userId, user.id))
       .where(eq(groupMembers.groupId, data.groupId))

@@ -652,7 +652,9 @@ function ManageSheet({
                   return (
                     <li key={m.id} className={["border-b border-border last:border-b-0", i % 2 === 0 ? "" : "bg-surface/40"].join(" ")}>
                       <div className="flex items-center gap-3 px-4 py-3">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 font-display text-xs">{avatar}</span>
+                        <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
+                          {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : avatar}
+                        </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold">{m.name}</p>
                           {isOwnerRow && (
@@ -822,7 +824,9 @@ function StandingsDrawer({
                         ].join(" ")}
                       >
                         <span className="grid h-7 w-7 place-items-center rounded-full bg-background font-display text-sm text-muted-foreground">{m.rank}</span>
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 font-display text-xs">{m.avatar}</span>
+                        <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
+                          {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : m.avatar}
+                        </span>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold">{m.name}</p>
                           {m.streak > 0 && (
