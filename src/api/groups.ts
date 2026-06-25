@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { groups, groupMembers } from "@/db/schema";
+import { user, groups, groupMembers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { getEnabledCompetitions, getCurrentRound } from "@/lib/leagues";
 
@@ -114,6 +114,71 @@ export const createGroup = createServerFn({ method: "POST" })
     });
 
     return { id, inviteCode };
+  });
+
+export const updateGroup = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      groupId: z.string(),
+      name: z.string().min(2).max(50),
+      emoji: z.string().min(1).max(4),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const user = await requireUser();
+    const db = getDb();
+
+    const [group] = await db.select().from(groups).where(eq(groups.id, data.groupId)).limit(1);
+    if (!group) throw new Error("Group not found");
+    if (group.ownerId !== user.id) throw new Error("Only the group owner can edit this group");
+
+    await db
+      .update(groups)
+      .set({ name: data.name, emoji: data.emoji })
+      .where(eq(groups.id, data.groupId));
+
+    return { ok: true };
+  });
+
+export const removeMember = createServerFn({ method: "POST" })
+  .validator(z.object({ groupId: z.string(), userId: z.string() }))
+  .handler(async ({ data }) => {
+    const me = await requireUser();
+    const db = getDb();
+
+    const [group] = await db.select().from(groups).where(eq(groups.id, data.groupId)).limit(1);
+    if (!group) throw new Error("Group not found");
+    if (group.ownerId !== me.id) throw new Error("Only the group owner can remove members");
+    if (data.userId === group.ownerId) throw new Error("Cannot remove the group owner");
+
+    await db
+      .delete(groupMembers)
+      .where(and(eq(groupMembers.groupId, data.groupId), eq(groupMembers.userId, data.userId)));
+
+    return { ok: true };
+  });
+
+export const getGroupMembers = createServerFn({ method: "GET" })
+  .validator(z.object({ groupId: z.string() }))
+  .handler(async ({ data }) => {
+    const me = await requireUser();
+    const db = getDb();
+
+    const membership = await db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, data.groupId), eq(groupMembers.userId, me.id)))
+      .limit(1);
+    if (!membership.length) throw new Error("Not a member of this group");
+
+    const rows = await db
+      .select({ id: user.id, name: user.name, email: user.email, joinedAt: groupMembers.joinedAt })
+      .from(groupMembers)
+      .innerJoin(user, eq(groupMembers.userId, user.id))
+      .where(eq(groupMembers.groupId, data.groupId))
+      .orderBy(groupMembers.joinedAt);
+
+    return rows;
   });
 
 export const joinGroup = createServerFn({ method: "POST" })
