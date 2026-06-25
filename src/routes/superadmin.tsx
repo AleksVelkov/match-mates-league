@@ -13,9 +13,12 @@ import {
   syncCompetitionSeason,
   setMatchResult,
   setActiveRound,
+  getSeasonsList,
+  createSeason,
+  deleteSeason,
 } from "@/api/superadmin";
 import { COMPETITION_CODES } from "@/lib/football-data";
-import { Users, Trophy, Target, Database, Check, RefreshCw, AlertTriangle } from "lucide-react";
+import { Calendar, Plus, Trash2, Users, Trophy, Target, Database, Check, RefreshCw, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/superadmin")({
   head: () => ({ meta: [{ title: "ScorIQ — Super Admin" }] }),
@@ -27,14 +30,15 @@ export const Route = createFileRoute("/superadmin")({
     }
   },
   loader: async () => {
-    const [stats, allGroups, allUsers, enabledCompetitions, currentRounds] = await Promise.all([
+    const [stats, allGroups, allUsers, enabledCompetitions, currentRounds, seasons] = await Promise.all([
       getSuperAdminStats(),
       getAllGroups(),
       getAllUsers(),
       getEnabledCompetitions(),
       getCurrentRounds(),
+      getSeasonsList(),
     ]);
-    return { stats, allGroups, allUsers, enabledCompetitions, currentRounds };
+    return { stats, allGroups, allUsers, enabledCompetitions, currentRounds, seasons };
   },
   component: SuperAdminPage,
 });
@@ -54,8 +58,9 @@ function SuperAdminPage() {
     allUsers,
     enabledCompetitions: initial,
     currentRounds,
+    seasons,
   } = Route.useLoaderData();
-  const [tab, setTab] = useState<"overview" | "matches" | "groups" | "users" | "competitions">(
+  const [tab, setTab] = useState<"overview" | "matches" | "groups" | "users" | "competitions" | "seasons">(
     "overview",
   );
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initial));
@@ -121,7 +126,7 @@ function SuperAdminPage() {
 
       {/* Tab bar */}
       <div className="flex flex-wrap gap-2 px-5 pb-4">
-        {(["overview", "matches", "groups", "users", "competitions"] as const).map((t) => (
+        {(["overview", "matches", "groups", "users", "competitions", "seasons"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -250,6 +255,9 @@ function SuperAdminPage() {
             </ul>
           </>
         )}
+
+        {/* ── Seasons ── */}
+        {tab === "seasons" && <SeasonsTab initialSeasons={seasons} />}
 
         {/* ── Competitions ── */}
         {tab === "competitions" && (
@@ -686,6 +694,133 @@ function MatchRow({
       )}
       {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
     </article>
+  );
+}
+
+type Season = Awaited<ReturnType<typeof getSeasonsList>>[number];
+
+function SeasonsTab({ initialSeasons }: { initialSeasons: Season[] }) {
+  const [list, setList] = useState<Season[]>(initialSeasons);
+  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  async function handleCreate() {
+    if (!name.trim() || !startDate || !endDate) { setError("Fill in all fields."); return; }
+    if (new Date(startDate) >= new Date(endDate)) { setError("End date must be after start date."); return; }
+    setCreating(true);
+    setError(null);
+    try {
+      const { id } = await createSeason({ data: { name: name.trim(), startDate, endDate } });
+      const now = new Date();
+      setList((prev) => [...prev, { id, name: name.trim(), startDate: new Date(startDate), endDate: new Date(endDate), createdAt: now }]);
+      setName(""); setStartDate(""); setEndDate("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create season");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try {
+      await deleteSeason({ data: { id } });
+      setList((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete season");
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground">Define seasons so users can see their stats per season.</p>
+
+      {/* Create form */}
+      <div className="rounded-3xl border border-border bg-surface p-4 space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Calendar className="h-3.5 w-3.5" /> New season
+        </p>
+        <input
+          type="text"
+          placeholder="Season name (e.g. 2025/26)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">Start date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-muted-foreground">End date</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+        >
+          <Plus className="h-4 w-4" />
+          {creating ? "Creating…" : "Create season"}
+        </button>
+      </div>
+
+      {/* List */}
+      {list.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
+          No seasons yet. Create one above.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((s) => {
+            const now = new Date();
+            const isActive = new Date(s.startDate) <= now && now <= new Date(s.endDate);
+            return (
+              <li key={s.id} className="flex items-center justify-between gap-3 rounded-3xl border border-border bg-surface px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-lg leading-tight truncate">{s.name}</span>
+                    {isActive && <span className="shrink-0 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary">Active</span>}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {dateFmt.format(new Date(s.startDate))} – {dateFmt.format(new Date(s.endDate))}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(s.id)}
+                  disabled={deleting === s.id}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border text-destructive disabled:opacity-50"
+                >
+                  {deleting === s.id ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" /> : <Trash2 className="h-4 w-4" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
   );
 }
 

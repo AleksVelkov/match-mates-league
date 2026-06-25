@@ -11,6 +11,13 @@ export type Env = {
   SCORIQ_SECRET: string;
   FOOTBALL_DATA_API_KEY: string;
   SUPER_ADMIN_EMAIL: string;
+  // Digital Ocean Spaces (S3-compatible) — required for avatar uploads.
+  // Set in Cloudflare Pages → Settings → Environment variables.
+  DO_SPACES_KEY: string;
+  DO_SPACES_SECRET: string;
+  DO_SPACES_BUCKET: string;
+  DO_SPACES_ENDPOINT: string; // e.g. https://ams3.digitaloceanspaces.com
+  DO_SPACES_REGION: string;   // e.g. ams3
 };
 
 export function getEnvStore(): Env {

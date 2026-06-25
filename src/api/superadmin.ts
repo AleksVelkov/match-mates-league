@@ -3,7 +3,7 @@ import { eq, and, count, sql, isNull, isNotNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { user, groups, fixtures, predictions } from "@/db/schema";
+import { user, groups, fixtures, predictions, seasons } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
 import { scoreFixture } from "@/lib/scoring";
@@ -342,5 +342,45 @@ export const setActiveRound = createServerFn({ method: "POST" })
     await requireSuperAdmin();
     const db = getDb();
     await setCurrentRound(db, data.competition, data.round);
+    return { ok: true };
+  });
+
+// ─── Seasons ──────────────────────────────────────────────────────────────────
+
+export const getSeasonsList = createServerFn({ method: "GET" }).handler(async () => {
+  await requireSuperAdmin();
+  const db = getDb();
+  return db.select().from(seasons).orderBy(seasons.startDate);
+});
+
+export const createSeason = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      name: z.string().min(1).max(80),
+      startDate: z.string(), // ISO date string
+      endDate: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+    const now = new Date();
+    const id = crypto.randomUUID();
+    await db.insert(seasons).values({
+      id,
+      name: data.name,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      createdAt: now,
+    });
+    return { id };
+  });
+
+export const deleteSeason = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+    await db.delete(seasons).where(eq(seasons.id, data.id));
     return { ok: true };
   });

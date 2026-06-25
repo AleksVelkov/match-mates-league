@@ -131,6 +131,24 @@ export const predictions = sqliteTable(
   (t) => [uniqueIndex("predictions_group_fixture_user_idx").on(t.groupId, t.fixtureId, t.userId)],
 );
 
+// Extended user profile data — country, etc. (avatar URL lives on user.image)
+export const userProfiles = sqliteTable("user_profiles", {
+  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+  country: text("country"),
+  countryCode: text("country_code"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+// Seasons defined by the super admin for stat aggregation.
+export const seasons = sqliteTable("seasons", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+  endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 export const achievements = sqliteTable(
   "achievements",
   {
