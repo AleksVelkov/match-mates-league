@@ -3,9 +3,10 @@ import { useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { useTheme } from "@/components/ThemeToggle";
 import { getMe, signOut } from "@/api/auth";
-import { getMyGroups } from "@/api/groups";
+import { getMyGroups, getAvailableLeagues } from "@/api/groups";
 import { getLeaderboard } from "@/api/leaderboard";
-import { Check, Copy, Flame, LogOut, Moon, Share2, Sun, Target, Trophy, Users } from "lucide-react";
+import { getFavoriteLeague, setFavoriteLeague } from "@/api/preferences";
+import { Check, Copy, Flame, LogOut, Moon, Share2, Star, Sun, Target, Trophy, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/profile")({
   head: () => ({
@@ -15,12 +16,17 @@ export const Route = createFileRoute("/_protected/profile")({
     ],
   }),
   loader: async () => {
-    const [me, groups] = await Promise.all([getMe(), getMyGroups()]);
-    if (!groups.length) return { me, group: null, stats: null };
+    const [me, groups, favLeague, leagues] = await Promise.all([
+      getMe(),
+      getMyGroups(),
+      getFavoriteLeague(),
+      getAvailableLeagues(),
+    ]);
+    if (!groups.length) return { me, group: null, stats: null, favLeague, leagues };
     const group = groups[0];
     const standings = await getLeaderboard({ data: { groupId: group.id } });
     const stats = standings.find((s) => s.isMe) ?? null;
-    return { me, group, stats };
+    return { me, group, stats, favLeague, leagues };
   },
   component: ProfilePage,
 });
@@ -49,7 +55,7 @@ const ACHIEVEMENTS: Array<{
 ];
 
 function ProfilePage() {
-  const { me, group, stats } = Route.useLoaderData();
+  const { me, group, stats, favLeague, leagues } = Route.useLoaderData();
   const router = useRouter();
   const { theme, toggle, mounted } = useTheme();
   const name = me?.name ?? "You";
@@ -96,6 +102,16 @@ function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* Favorite league — always shown */}
+      {leagues.length > 0 && (
+        <section className="mt-4 px-5">
+          <FavoriteLeaguePicker
+            current={favLeague}
+            leagues={leagues}
+          />
+        </section>
+      )}
 
       {/* Settings — always shown */}
       <section className="mt-4 px-5">
@@ -258,6 +274,59 @@ function StreakRow({ emoji, label, value }: { emoji: string; label: string; valu
       <span className="text-2xl">{emoji}</span>
       <span className="truncate text-sm">{label}</span>
       <span className="font-display text-2xl text-joker">{value}</span>
+    </div>
+  );
+}
+
+function FavoriteLeaguePicker({
+  current,
+  leagues,
+}: {
+  current: string;
+  leagues: string[];
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(current);
+
+  async function pick(league: string) {
+    if (league === selected || saving) return;
+    setSelected(league);
+    setSaving(true);
+    try {
+      await setFavoriteLeague({ data: { league } });
+      router.invalidate();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <Star className="h-5 w-5 text-muted-foreground" />
+        <span className="text-sm font-semibold">Favorite league</span>
+        {saving && (
+          <span className="ml-auto h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        )}
+      </div>
+      <ul>
+        {leagues.map((league, i) => (
+          <li key={league}>
+            <button
+              onClick={() => pick(league)}
+              className={[
+                "flex w-full items-center justify-between px-4 py-3 text-left text-sm",
+                i < leagues.length - 1 ? "border-b border-border" : "",
+                selected === league ? "text-primary font-semibold" : "text-foreground",
+              ].join(" ")}
+            >
+              {league}
+              {selected === league && <Check className="h-4 w-4 text-primary" />}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -1,33 +1,34 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { NoGroup } from "@/components/NoGroup";
 import { TeamCrest } from "@/components/TeamCrest";
-import { Countdown } from "@/components/Countdown";
 import { getMe } from "@/api/auth";
-import { getMyGroups, getGroup } from "@/api/groups";
-import { getFixtures } from "@/api/fixtures";
-import { getLeaderboard } from "@/api/leaderboard";
-import { getMyPredictions } from "@/api/predictions";
-import { ChevronRight, Flame, Target, Trophy, Users } from "lucide-react";
+import { getMyGroups } from "@/api/groups";
+import { getLeagueFixtures } from "@/api/fixtures";
+import { getMyBestStats } from "@/api/leaderboard";
+import { getFavoriteLeague } from "@/api/preferences";
+import { Flame, Target, Trophy } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/")({
   head: () => ({
     meta: [
       { title: "ScorIQ — Home" },
-      { name: "description", content: "Your active prediction round at a glance." },
+      { name: "description", content: "Live scores and your prediction stats." },
     ],
   }),
   loader: async () => {
-    const [me, groups] = await Promise.all([getMe(), getMyGroups()]);
-    if (!groups.length) return { me, group: null };
-    const base = groups[0];
-    const [group, standings, fixtures, myPreds] = await Promise.all([
-      getGroup({ data: { groupId: base.id } }),
-      getLeaderboard({ data: { groupId: base.id } }),
-      getFixtures({ data: { groupId: base.id, round: base.round } }),
-      getMyPredictions({ data: { groupId: base.id, round: base.round } }),
+    const [me, myGroups, favLeague] = await Promise.all([
+      getMe(),
+      getMyGroups(),
+      getFavoriteLeague(),
     ]);
-    return { me, group, standings, fixtures, myPreds };
+
+    const [leagueFixtures, bestStats] = await Promise.all([
+      getLeagueFixtures({ data: { competition: favLeague } }).catch(() => [] as Awaited<ReturnType<typeof getLeagueFixtures>>),
+      myGroups.length ? getMyBestStats() : Promise.resolve(null),
+    ]);
+
+    return { me, myGroups, favLeague, leagueFixtures, bestStats };
   },
   component: HomePage,
 });
@@ -40,42 +41,23 @@ function initials(name: string) {
     .slice(0, 2);
 }
 
+const kickoffFmt = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 function HomePage() {
-  const data = Route.useLoaderData();
-  const name = data.me?.name ?? "there";
-
-  if (!data.group) {
-    return (
-      <AppShell>
-        <header className="px-5 pt-10 pb-2">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
-          <p className="truncate font-display text-2xl leading-none">Hey, {name}</p>
-        </header>
-        <NoGroup />
-      </AppShell>
-    );
-  }
-
-  const { group, standings, fixtures, myPreds } = data;
-  const predictedIds = new Set(
-    myPreds.filter((p) => p.scoreHome !== null && p.scoreAway !== null).map((p) => p.fixtureId),
-  );
-  const submitted = fixtures.filter((f) => predictedIds.has(f.id)).length;
-  const total = fixtures.length;
-
-  const now = Date.now();
-  const nextKickoff =
-    [...fixtures]
-      .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime())
-      .find((f) => new Date(f.kickoffAt).getTime() > now) ?? fixtures[0];
-
-  const meRow = standings.find((s) => s.isMe);
-  const top3 = standings.slice(0, 3);
+  const { me, myGroups, favLeague, leagueFixtures, bestStats } = Route.useLoaderData();
+  const name = me?.name ?? "there";
 
   return (
     <AppShell>
       {/* Greeting */}
-      <header className="px-5 pt-10 pb-2">
+      <header className="px-5 pt-10 pb-6">
         <div className="flex items-center gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary font-display text-lg text-primary-foreground shadow-glow">
             {initials(name)}
@@ -87,140 +69,84 @@ function HomePage() {
         </div>
       </header>
 
-      {/* Group card */}
-      <section className="px-5 pt-6">
-        <Link
-          to="/predictions"
-          className="block overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface-2 to-surface p-5 shadow-card"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-                {group.competition} · Round {group.round}
-              </p>
-              <h2 className="mt-1 truncate font-display text-3xl leading-tight">
-                {group.emoji} {group.name}
-              </h2>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Users className="h-3.5 w-3.5" /> {group.memberCount} members
-              </p>
-            </div>
-            <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
-          </div>
+      {/* Best stats across all groups */}
+      {bestStats ? (
+        <section className="grid grid-cols-3 gap-2 px-5 pb-6">
+          <BestStatCard
+            label="Streak"
+            value={bestStats.streak.value}
+            groupName={bestStats.streak.groupName}
+            groupEmoji={bestStats.streak.groupEmoji}
+            icon={<Flame className="h-3.5 w-3.5" />}
+            accent
+          />
+          <BestStatCard
+            label="Points"
+            value={bestStats.points.value}
+            groupName={bestStats.points.groupName}
+            groupEmoji={bestStats.points.groupEmoji}
+            icon={<Trophy className="h-3.5 w-3.5" />}
+          />
+          <BestStatCard
+            label="Exact"
+            value={bestStats.exact.value}
+            groupName={bestStats.exact.groupName}
+            groupEmoji={bestStats.exact.groupEmoji}
+            icon={<Target className="h-3.5 w-3.5" />}
+          />
+        </section>
+      ) : !myGroups.length ? (
+        <NoGroup />
+      ) : null}
 
-          {/* Progress */}
-          <div className="mt-5">
-            <div className="mb-2 flex items-end justify-between">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                Predictions
-              </span>
-              <span className="font-display text-2xl">
-                <span className="text-primary">{submitted}</span>
-                <span className="text-muted-foreground">/{total}</span>
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-background/60">
-              <div
-                className="h-full rounded-full bg-primary shadow-glow"
-                style={{ width: `${total ? (submitted / total) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Next kickoff */}
-          {nextKickoff && (
-            <div className="mt-5 flex items-center justify-between rounded-2xl bg-background/40 p-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <TeamCrest short={nextKickoff.homeShort} size={36} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {nextKickoff.homeShort} vs {nextKickoff.awayShort}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Next kickoff</p>
-                </div>
-              </div>
-              <Countdown
-                iso={new Date(nextKickoff.kickoffAt).toISOString()}
-                className="rounded-xl bg-primary/15 px-3 py-1.5 font-display text-lg text-primary"
-              />
-            </div>
+      {/* League fixtures */}
+      <section className="px-5 pb-8">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="font-display text-xl">{favLeague}</h2>
+          {leagueFixtures.length > 0 && (
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Round {leagueFixtures[0].round}
+            </span>
           )}
-
-          <div className="mt-5 grid place-items-center rounded-2xl bg-primary py-3.5 font-display text-lg uppercase tracking-wider text-primary-foreground shadow-glow">
-            Continue Predicting
-          </div>
-        </Link>
-      </section>
-
-      {/* Quick stats */}
-      <section className="grid grid-cols-3 gap-2 px-5 pt-5">
-        <StatCard
-          label="Streak"
-          value={`${meRow?.streak ?? 0}`}
-          icon={<Flame className="h-4 w-4" />}
-          accent
-        />
-        <StatCard
-          label="Points"
-          value={`${meRow?.points ?? 0}`}
-          icon={<Trophy className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Exact"
-          value={`${meRow?.exact ?? 0}`}
-          icon={<Target className="h-4 w-4" />}
-        />
-      </section>
-
-      {/* Top 3 standings */}
-      <section className="px-5 pt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-display text-xl">Standings</h3>
-          <Link
-            to="/admin/$groupId"
-            params={{ groupId: group.id }}
-            className="text-xs font-semibold uppercase tracking-widest text-primary"
-          >
-            View all
-          </Link>
         </div>
-        <ul className="overflow-hidden rounded-3xl border border-border bg-surface">
-          {top3.map((m) => (
-            <li
-              key={m.id}
-              className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
-            >
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-background font-display text-sm text-muted-foreground">
-                {m.rank}
-              </span>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 font-display text-xs">
-                {m.avatar}
-              </span>
-              <span className="truncate text-sm font-semibold">{m.name}</span>
-              <span className="font-display text-xl text-primary">{m.points}</span>
-            </li>
-          ))}
-        </ul>
+
+        {leagueFixtures.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              No matches published for this league yet.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {leagueFixtures.map((f) => (
+              <MatchCard key={f.id} fixture={f} />
+            ))}
+          </ul>
+        )}
       </section>
     </AppShell>
   );
 }
 
-function StatCard({
+function BestStatCard({
   label,
   value,
+  groupName,
+  groupEmoji,
   icon,
   accent,
 }: {
   label: string;
-  value: string;
-  icon?: React.ReactNode;
+  value: number;
+  groupName: string;
+  groupEmoji: string;
+  icon: React.ReactNode;
   accent?: boolean;
 }) {
   return (
     <div
       className={[
-        "rounded-2xl border border-border p-3",
+        "flex flex-col rounded-2xl border border-border p-3",
         accent ? "bg-gradient-to-br from-joker/20 to-surface" : "bg-surface",
       ].join(" ")}
     >
@@ -235,6 +161,65 @@ function StatCard({
       >
         {value}
       </div>
+      <p className="mt-1.5 truncate text-[10px] text-muted-foreground">
+        {groupEmoji} {groupName}
+      </p>
     </div>
+  );
+}
+
+type Fixture = Awaited<ReturnType<typeof getLeagueFixtures>>[number];
+
+function MatchCard({ fixture: f }: { fixture: Fixture }) {
+  const hasResult = f.resultHome !== null && f.resultAway !== null;
+  const isLive = f.status === "live";
+  const isFinished = f.status === "finished";
+
+  return (
+    <li className="overflow-hidden rounded-3xl border border-border bg-surface">
+      <div className="flex items-center justify-between px-4 pt-3">
+        <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
+          {kickoffFmt.format(new Date(f.kickoffAt))}
+        </span>
+        <div className="flex items-center gap-2">
+          {hasResult && (
+            <span
+              className={[
+                "font-display text-lg",
+                isLive ? "text-success" : "text-foreground",
+              ].join(" ")}
+            >
+              {f.resultHome} – {f.resultAway}
+            </span>
+          )}
+          <span
+            className={[
+              "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest",
+              isLive
+                ? "bg-success/20 text-success"
+                : isFinished
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted/30 text-muted-foreground",
+            ].join(" ")}
+          >
+            {f.status}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <TeamCrest short={f.homeShort} size={36} />
+          <p className="truncate text-sm font-semibold">{f.homeShort}</p>
+        </div>
+        <span className="font-display text-2xl text-muted-foreground/60">
+          {hasResult ? "–" : "vs"}
+        </span>
+        <div className="flex items-center justify-end gap-2 min-w-0">
+          <p className="truncate text-right text-sm font-semibold">{f.awayShort}</p>
+          <TeamCrest short={f.awayShort} size={36} />
+        </div>
+      </div>
+    </li>
   );
 }
