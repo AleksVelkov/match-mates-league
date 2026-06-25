@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { NoGroup } from "@/components/NoGroup";
 import { TeamCrest } from "@/components/TeamCrest";
@@ -168,6 +169,15 @@ function BestStatCard({
   );
 }
 
+function TeamLink({ teamId, children }: { teamId: string | null; children: ReactNode }) {
+  if (!teamId) return <>{children}</>;
+  return (
+    <Link to="/team/$teamId" params={{ teamId }} className="min-w-0">
+      {children}
+    </Link>
+  );
+}
+
 type Fixture = Awaited<ReturnType<typeof getLeagueFixtures>>[number];
 
 function MatchCard({ fixture: f }: { fixture: Fixture }) {
@@ -208,17 +218,21 @@ function MatchCard({ fixture: f }: { fixture: Fixture }) {
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={36} />
-          <p className="truncate text-sm font-semibold">{f.homeShort}</p>
-        </div>
+        <TeamLink teamId={f.homeTeamId ?? null}>
+          <div className="flex items-center gap-2 min-w-0">
+            <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={36} />
+            <p className="truncate text-sm font-semibold">{f.homeShort}</p>
+          </div>
+        </TeamLink>
         <span className="font-display text-2xl text-muted-foreground/60">
           {hasResult ? "–" : "vs"}
         </span>
-        <div className="flex items-center justify-end gap-2 min-w-0">
-          <p className="truncate text-right text-sm font-semibold">{f.awayShort}</p>
-          <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={36} />
-        </div>
+        <TeamLink teamId={f.awayTeamId ?? null}>
+          <div className="flex items-center justify-end gap-2 min-w-0">
+            <p className="truncate text-right text-sm font-semibold">{f.awayShort}</p>
+            <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={36} />
+          </div>
+        </TeamLink>
       </div>
     </li>
   );
