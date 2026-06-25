@@ -157,7 +157,7 @@
   }
 }
 
-/* ─── Tap / press feedback ─────────────────────────────────────────────────── */
+/* ─── Tap / press + hover feedback (reactbits-style) ───────────────────────── */
 @layer base {
   button,
   [role="button"],
@@ -166,10 +166,38 @@
     touch-action: manipulation;
   }
 
+  /* Base transition for smooth hover in/out */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    transition:
+      transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      filter 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  /* Hover: subtle lift + glow ring */
+  button:not(:disabled):hover,
+  [role="button"]:not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow: 0 4px 16px -4px color-mix(in oklab, currentColor 20%, transparent);
+  }
+
+  /* Press: snap down, override transition for snappiness */
   button:not(:disabled):active,
   [role="button"]:not([aria-disabled="true"]):active {
     transform: scale(0.96);
-    transition: transform 80ms ease-out;
+    filter: brightness(1.0);
+    box-shadow: none;
+    transition: transform 80ms ease-out, filter 80ms ease-out, box-shadow 80ms ease-out;
+  }
+
+  a:not([aria-disabled]) {
+    transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 180ms ease;
+  }
+
+  a:not([aria-disabled]):hover {
+    filter: brightness(1.06);
   }
 
   a:active {
@@ -196,15 +224,26 @@
     background: linear-gradient(
       90deg,
       transparent,
-      color-mix(in oklab, white 25%, transparent),
+      color-mix(in oklab, white 28%, transparent),
       transparent
     );
     transform: translateX(-120%) skewX(-20deg);
     pointer-events: none;
   }
 
+  /* Shimmer on hover */
+  &:not(:disabled):hover::after {
+    animation: btn-shimmer 0.55s ease forwards;
+  }
+
+  /* Stronger shimmer + faster on press */
   &:not(:disabled):active::after {
-    animation: btn-shimmer 0.45s ease forwards;
+    animation: btn-shimmer 0.35s ease forwards;
+  }
+
+  /* Amplified glow on hover */
+  &:not(:disabled):hover {
+    box-shadow: 0 0 28px -4px color-mix(in oklab, var(--primary) 70%, transparent) !important;
   }
 }
 

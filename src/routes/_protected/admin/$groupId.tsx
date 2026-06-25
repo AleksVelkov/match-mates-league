@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, removeMember } from "@/api/groups";
@@ -115,51 +115,80 @@ function AdminGroupPage() {
   );
 
   const [rows, setRows] = useState<PredRow[]>(initial);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  // Track latest rows synchronously so debounced saves always read fresh values
+  const rowsRef = useRef<PredRow[]>(initial);
+  const debounceRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [saveStates, setSaveStates] = useState<Map<string, "saving" | "saved" | "error">>(new Map());
+  const [saveErrors, setSaveErrors] = useState<Map<string, string>>(new Map());
 
   const submitted = rows.filter((f) => f.predictionHome !== null && f.predictionAway !== null).length;
   const total = rows.length;
   const jokerId = useMemo(() => rows.find((f) => f.isJoker)?.id ?? null, [rows]);
 
+  const saveSingleRow = useCallback(
+    async (f: PredRow) => {
+      if (f.locked) return;
+      if (f.predictionHome === null && f.predictionAway === null && !f.isJoker) return;
+      setSaveStates((m) => new Map(m).set(f.id, "saving"));
+      setSaveErrors((m) => { const n = new Map(m); n.delete(f.id); return n; });
+      try {
+        await savePredictions({
+          data: {
+            groupId: group.id,
+            round: group.round,
+            predictions: [{ fixtureId: f.id, scoreHome: f.predictionHome, scoreAway: f.predictionAway, isJoker: f.isJoker }],
+          },
+        });
+        setSaveStates((m) => new Map(m).set(f.id, "saved"));
+        setTimeout(() => {
+          setSaveStates((m) => {
+            const n = new Map(m);
+            if (n.get(f.id) === "saved") n.delete(f.id);
+            return n;
+          });
+        }, 2000);
+      } catch (e) {
+        setSaveStates((m) => new Map(m).set(f.id, "error"));
+        setSaveErrors((m) => new Map(m).set(f.id, e instanceof Error ? e.message : "Save failed"));
+      }
+    },
+    [group.id, group.round],
+  );
+
   function setScore(id: string, side: "home" | "away", raw: string) {
     const n = raw === "" ? null : Math.max(0, Math.min(99, parseInt(raw, 10) || 0));
-    setRows((arr) =>
-      arr.map((f) => {
+    setRows((prev) => {
+      const next = prev.map((f) => {
         if (f.id !== id) return f;
         return side === "home" ? { ...f, predictionHome: n } : { ...f, predictionAway: n };
-      }),
+      });
+      rowsRef.current = next;
+      return next;
+    });
+    // Debounce save per fixture — 700ms after last keystroke
+    const existing = debounceRefs.current.get(id);
+    if (existing) clearTimeout(existing);
+    debounceRefs.current.set(
+      id,
+      setTimeout(() => {
+        debounceRefs.current.delete(id);
+        const f = rowsRef.current.find((r) => r.id === id);
+        if (f) saveSingleRow(f);
+      }, 700),
     );
-    setSaved(false);
   }
 
   function toggleJoker(id: string) {
-    setRows((arr) => arr.map((f) => ({ ...f, isJoker: f.id === id ? !f.isJoker : false })));
-    setSaved(false);
-  }
-
-  async function handleSubmit() {
-    setSaving(true);
-    setSubmitError(null);
-    setSaved(false);
-    try {
-      const payload = rows
-        .filter((f) => !f.locked && (f.predictionHome !== null || f.predictionAway !== null || f.isJoker))
-        .map((f) => ({
-          fixtureId: f.id,
-          scoreHome: f.predictionHome,
-          scoreAway: f.predictionAway,
-          isJoker: f.isJoker,
-        }));
-      await savePredictions({ data: { groupId: group.id, round: group.round, predictions: payload } });
-      setSaved(true);
-      router.invalidate();
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Could not save predictions");
-    } finally {
-      setSaving(false);
-    }
+    setRows((prev) => {
+      const next = prev.map((f) => ({ ...f, isJoker: f.id === id ? !f.isJoker : false }));
+      rowsRef.current = next;
+      return next;
+    });
+    // Save joker change immediately (next tick so ref is updated)
+    setTimeout(() => {
+      const f = rowsRef.current.find((r) => r.id === id);
+      if (f) saveSingleRow(f);
+    }, 0);
   }
 
   async function handleCopyPredictions() {
@@ -282,36 +311,17 @@ function AdminGroupPage() {
                 <PredictionRow
                   key={f.id}
                   fixture={f}
+                  saveState={saveStates.get(f.id) ?? null}
+                  saveError={saveErrors.get(f.id) ?? null}
                   onScore={(side, v) => setScore(f.id, side, v)}
                   onJoker={() => toggleJoker(f.id)}
                 />
               ))}
             </div>
 
-            {/* Submit button */}
-            <div className="pt-5">
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className="btn-primary flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-display text-base uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
-              >
-                {saved ? (
-                  <>
-                    <Check className="h-5 w-5" /> Saved
-                  </>
-                ) : saving ? (
-                  "Saving…"
-                ) : (
-                  "Submit round"
-                )}
-              </button>
-              {submitError && (
-                <p className="mt-2 text-center text-[11px] text-destructive">{submitError}</p>
-              )}
-              <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                Predictions stay hidden from your group until each kickoff.
-              </p>
-            </div>
+            <p className="mt-4 text-center text-[11px] text-muted-foreground">
+              Predictions are saved automatically. They stay hidden until each kickoff.
+            </p>
           </>
         )}
 
@@ -357,10 +367,14 @@ function AdminGroupPage() {
 
 function PredictionRow({
   fixture,
+  saveState,
+  saveError,
   onScore,
   onJoker,
 }: {
   fixture: PredRow;
+  saveState: "saving" | "saved" | "error" | null;
+  saveError: string | null;
   onScore: (side: "home" | "away", v: string) => void;
   onJoker: () => void;
 }) {
@@ -394,6 +408,15 @@ function PredictionRow({
           )}
         </span>
         <div className="flex items-center gap-2">
+          {/* Per-fixture save indicator */}
+          {saveState === "saving" && (
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
+          {saveState === "saved" && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-success animate-in fade-in duration-200">
+              <Check className="h-3 w-3" /> Saved
+            </span>
+          )}
           {hasResult && (
             <span className="font-display text-lg text-foreground">
               {fixture.resultHome}–{fixture.resultAway}
@@ -420,6 +443,9 @@ function PredictionRow({
           )}
         </div>
       </div>
+      {saveState === "error" && saveError && (
+        <p className="px-4 pt-1 text-[10px] text-destructive">{saveError}</p>
+      )}
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
         {/* Home */}
@@ -474,43 +500,26 @@ function ScoreInput({
   label: string;
   disabled?: boolean;
 }) {
-  const [flash, setFlash] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value.replace(/[^0-9]/g, "");
-    onChange(v);
-    setFlash(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setFlash(false), 1200);
-  }
-
   return (
-    <div className="relative">
-      <input
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        aria-label={label}
-        value={value ?? ""}
-        disabled={disabled}
-        onChange={handleChange}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        placeholder="–"
-        className={[
-          "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
-          "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
-          "placeholder:text-muted-foreground/40 disabled:opacity-50",
-        ].join(" ")}
-      />
-      {flash && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-success text-success-foreground shadow-sm">
-          <Check className="h-3 w-3" />
-        </span>
-      )}
-    </div>
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={2}
+      aria-label={label}
+      value={value ?? ""}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      placeholder="–"
+      className={[
+        "h-12 w-12 rounded-xl border border-border bg-background text-center font-display text-2xl leading-none text-foreground",
+        "outline-none focus:border-primary focus:ring-2 focus:ring-primary/40",
+        "placeholder:text-muted-foreground/40 disabled:opacity-50",
+        "transition-all duration-150",
+      ].join(" ")}
+    />
   );
 }
 
