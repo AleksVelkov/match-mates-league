@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { getMe, signIn, signUp, getGoogleAuthUrl } from "@/api/auth";
 
@@ -89,6 +89,13 @@ function LoginPage() {
           <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">or</span>
           <div className="h-px flex-1 bg-border" />
         </div>
+
+        <p className="mb-4 text-center text-[11px] text-muted-foreground">
+          By continuing, you agree to our{" "}
+          <Link to="/terms" className="underline underline-offset-2 hover:text-foreground">Terms</Link>
+          {" "}and{" "}
+          <Link to="/privacy-policy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>.
+        </p>
 
         <div className="overflow-hidden rounded-3xl border border-border bg-surface">
           {/* Tab toggle */}
