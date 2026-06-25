@@ -6,7 +6,7 @@ import { TeamCrest } from "@/components/TeamCrest";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
 import { getLeaderboard } from "@/api/leaderboard";
-import { getMyPredictions, savePredictions, copyPredictionsToMyGroups } from "@/api/predictions";
+import { getMyPredictions, savePredictions, copyPredictionsToMyGroups, getGroupHistory } from "@/api/predictions";
 import {
   ChevronLeft,
   ChevronDown,
@@ -28,17 +28,18 @@ export const Route = createFileRoute("/_protected/admin/$groupId")({
   head: () => ({ meta: [{ title: "ScorIQ — Group" }] }),
   loader: async ({ params }) => {
     const group = await getGroup({ data: { groupId: params.groupId } });
-    const [fixtures, standings, myGroups, members, myPreds] = await Promise.all([
+    const [fixtures, standings, myGroups, members, myPreds, history] = await Promise.all([
       getFixtures({ data: { groupId: params.groupId, round: group.round } }),
       getLeaderboard({ data: { groupId: params.groupId } }),
       getMyGroups(),
       getGroupMembers({ data: { groupId: params.groupId } }),
       getMyPredictions({ data: { groupId: params.groupId, round: group.round } }),
+      getGroupHistory({ data: { groupId: params.groupId } }),
     ]);
     const siblingCount = myGroups.filter(
       (g) => g.competition === group.competition && g.id !== group.id,
     ).length;
-    return { group, fixtures, standings, siblingCount, members, myPreds };
+    return { group, fixtures, standings, siblingCount, members, myPreds, history };
   },
   component: AdminGroupPage,
 });
@@ -75,7 +76,7 @@ type PredRow = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function AdminGroupPage() {
-  const { group, fixtures: rawFixtures, standings, siblingCount, members, myPreds } =
+  const { group, fixtures: rawFixtures, standings, siblingCount, members, myPreds, history } =
     Route.useLoaderData();
   const { me } = Route.useRouteContext();
   const router = useRouter();
@@ -86,6 +87,7 @@ function AdminGroupPage() {
   const [standingsOpen, setStandingsOpen] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyMsg, setCopyMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"predict" | "played">("predict");
 
   // ── Prediction state ─────────────────────────────────────────────────────
   const now = Date.now();
@@ -278,63 +280,70 @@ function AdminGroupPage() {
         </div>
       )}
 
-      {/* ── Round predictions ── */}
+      {/* ── Tabs ── */}
       <section className="px-5">
-        <h3 className="mb-3 font-display text-xl">Round {group.round}</h3>
+        <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-surface p-1">
+          {(["predict", "played"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "rounded-xl py-2.5 text-sm font-semibold uppercase tracking-widest transition-all",
+                activeTab === tab
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+            >
+              {tab === "predict" ? "To Predict" : "Played"}
+            </button>
+          ))}
+        </div>
 
-        {total === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              No matches published for this round yet.
-            </p>
-          </div>
-        ) : (
+        {activeTab === "predict" && (
           <>
-            {/* Progress + joker hint */}
-            <div className="mb-4 rounded-3xl border border-border bg-surface p-4">
-              <div className="mb-2 flex items-end justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Round progress
-                </span>
-                <span className="font-display text-lg">
-                  <span className="text-primary">{submitted}</span>
-                  <span className="text-muted-foreground">/{total}</span>
-                </span>
+            {total === 0 ? (
+              <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center">
+                <p className="text-sm text-muted-foreground">No matches published for this round yet.</p>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-background/60">
-                <div
-                  className="h-full rounded-full bg-primary shadow-glow transition-all"
-                  style={{ width: `${total ? (submitted / total) * 100 : 0}%` }}
-                />
-              </div>
-              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <Star className={`h-3.5 w-3.5 ${jokerId ? "fill-joker text-joker" : ""}`} />
-                {jokerId
-                  ? "Joker locked in — that match scores ×2."
-                  : "Pick one Joker match to double your points."}
-              </div>
-            </div>
-
-            {/* Fixture rows with prediction inputs */}
-            <div className="space-y-3">
-              {rows.map((f) => (
-                <PredictionRow
-                  key={f.id}
-                  fixture={f}
-                  saveState={saveStates.get(f.id) ?? null}
-                  saveError={saveErrors.get(f.id) ?? null}
-                  onScore={(side, v) => setScore(f.id, side, v)}
-                  onJoker={() => toggleJoker(f.id)}
-                />
-              ))}
-            </div>
-
-            <p className="mt-4 text-center text-[11px] text-muted-foreground">
-              Predictions are saved automatically. They stay hidden until each kickoff.
-            </p>
+            ) : (
+              <>
+                <div className="mb-4 rounded-3xl border border-border bg-surface p-4">
+                  <div className="mb-2 flex items-end justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Round {group.round} progress</span>
+                    <span className="font-display text-lg">
+                      <span className="text-primary">{submitted}</span>
+                      <span className="text-muted-foreground">/{total}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-background/60">
+                    <div className="h-full rounded-full bg-primary shadow-glow transition-all" style={{ width: `${total ? (submitted / total) * 100 : 0}%` }} />
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Star className={`h-3.5 w-3.5 ${jokerId ? "fill-joker text-joker" : ""}`} />
+                    {jokerId ? "Joker locked in — that match scores ×2." : "Pick one Joker match to double your points."}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {rows.map((f) => (
+                    <PredictionRow
+                      key={f.id}
+                      fixture={f}
+                      saveState={saveStates.get(f.id) ?? null}
+                      saveError={saveErrors.get(f.id) ?? null}
+                      onScore={(side, v) => setScore(f.id, side, v)}
+                      onJoker={() => toggleJoker(f.id)}
+                    />
+                  ))}
+                </div>
+                <p className="mt-4 text-center text-[11px] text-muted-foreground">
+                  Predictions are saved automatically. They stay hidden until each kickoff.
+                </p>
+              </>
+            )}
           </>
         )}
 
+        {activeTab === "played" && <PlayedTab history={history} />}
       </section>
 
       {/* Share modal */}
@@ -775,6 +784,118 @@ function ShareSheet({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Played tab ───────────────────────────────────────────────────────────────
+
+type GroupHistory = Awaited<ReturnType<typeof getGroupHistory>>;
+
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" });
+
+function getOutcome(rH: number, rA: number, pH: number | null, pA: number | null) {
+  if (pH === null || pA === null) return "none";
+  if (pH === rH && pA === rA) return "exact";
+  return Math.sign(pH - pA) === Math.sign(rH - rA) ? "correct" : "wrong";
+}
+
+function PlayedTab({ history }: { history: GroupHistory }) {
+  const [openRound, setOpenRound] = useState<number | null>(history.rounds[0]?.round ?? null);
+
+  if (history.rounds.length === 0) {
+    return (
+      <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center">
+        <p className="text-sm text-muted-foreground">No finished rounds yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pb-6">
+      {history.rounds.map(({ round, fixtures: rFixtures, memberTotals }) => {
+        const isOpen = openRound === round;
+        return (
+          <div key={round} className="overflow-hidden rounded-3xl border border-border bg-surface">
+            {/* Round header */}
+            <button
+              onClick={() => setOpenRound(isOpen ? null : round)}
+              className="flex w-full items-center justify-between px-5 py-3.5"
+            >
+              <span className="font-display text-lg">Round {round}</span>
+              <ChevronDown className={["h-4 w-4 text-muted-foreground transition-transform duration-200", isOpen ? "rotate-180" : ""].join(" ")} />
+            </button>
+
+            {/* Member points row — always visible */}
+            <div className="flex gap-4 overflow-x-auto border-t border-border px-5 py-3">
+              {memberTotals.map((m) => (
+                <div key={m.userId} className="flex shrink-0 flex-col items-center gap-1">
+                  <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
+                    {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : m.avatar}
+                  </span>
+                  <span className="font-display text-base leading-none text-primary">{m.points}</span>
+                  <span className="max-w-[52px] truncate text-[10px] text-muted-foreground">{m.name.split(" ")[0]}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Fixture breakdown */}
+            {isOpen && (
+              <div className="divide-y divide-border border-t border-border">
+                {rFixtures.map((f) => {
+                  const resultSign = Math.sign(f.resultHome - f.resultAway);
+                  return (
+                    <div key={f.id} className="px-4 py-3">
+                      {/* Match result */}
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{dateFmt.format(new Date(f.kickoffAt))}</span>
+                        <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={18} />
+                        <span className="text-xs font-semibold">{f.homeShort}</span>
+                        <span className="mx-1 font-display text-base">{f.resultHome}–{f.resultAway}</span>
+                        <span className="text-xs font-semibold">{f.awayShort}</span>
+                        <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={18} />
+                      </div>
+                      {/* Per-member predictions */}
+                      <div className="space-y-2">
+                        {f.memberPredictions.map((mp) => {
+                          const member = history.members.find((m) => m.id === mp.userId);
+                          if (!member) return null;
+                          const outcome = getOutcome(f.resultHome, f.resultAway, mp.scoreHome, mp.scoreAway);
+                          const avatar = member.name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+                          return (
+                            <div key={mp.userId} className="flex items-center gap-2">
+                              <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-[10px]">
+                                {member.image ? <img src={member.image} alt={member.name} className="h-full w-full object-cover" /> : avatar}
+                              </span>
+                              <span className="w-16 truncate text-xs text-muted-foreground">{member.name.split(" ")[0]}</span>
+                              {mp.scoreHome !== null ? (
+                                <>
+                                  <span className="font-display text-sm">{mp.scoreHome}–{mp.scoreAway}</span>
+                                  {mp.isJoker && <span className="text-[10px] text-joker">★</span>}
+                                  <span className={[
+                                    "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                    outcome === "exact" ? "bg-success/20 text-success" :
+                                    outcome === "correct" ? "bg-primary/15 text-primary" :
+                                    "bg-muted/30 text-muted-foreground",
+                                  ].join(" ")}>
+                                    {outcome === "exact" ? "Exact" : outcome === "correct" ? "Correct" : "Wrong"} · {mp.pointsEarned}pt
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="ml-2 text-[11px] italic text-muted-foreground">no pick</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

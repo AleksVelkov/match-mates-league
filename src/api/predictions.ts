@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, and, ne, inArray } from "drizzle-orm";
+import { eq, and, ne, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { fixtures, predictions, groupMembers, groups } from "@/db/schema";
+import { fixtures, predictions, groupMembers, groups, user } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 
 const PredictionInput = z.object({
@@ -239,3 +239,97 @@ export const copyPredictionsToMyGroups = createServerFn({ method: "POST" })
 
     return { groups: targets.length, predictions: copied };
   });
+
+/** All finished rounds for a group: fixtures + every member's prediction & points. */
+export const getGroupHistory = createServerFn({ method: "GET" })
+  .validator(z.object({ groupId: z.string() }))
+  .handler(async ({ data }) => {
+    const me = await requireUser();
+    const db = getDb();
+    const competition = await requireMembership(db, data.groupId, me.id);
+
+    const members = await db
+      .select({ id: user.id, name: user.name, image: user.image })
+      .from(groupMembers)
+      .innerJoin(user, eq(groupMembers.userId, user.id))
+      .where(eq(groupMembers.groupId, data.groupId))
+      .orderBy(groupMembers.joinedAt);
+
+    const doneFixtures = await db
+      .select()
+      .from(fixtures)
+      .where(and(eq(fixtures.competition, competition), isNotNull(fixtures.resultHome)))
+      .orderBy(fixtures.round, fixtures.kickoffAt);
+
+    if (!doneFixtures.length) return { members, rounds: [] as RoundHistory[] };
+
+    const allPreds = await db
+      .select()
+      .from(predictions)
+      .where(and(
+        eq(predictions.groupId, data.groupId),
+        inArray(predictions.fixtureId, doneFixtures.map((f) => f.id)),
+      ));
+
+    const predByFixture = new Map<string, Map<string, typeof allPreds[0]>>();
+    for (const p of allPreds) {
+      if (!predByFixture.has(p.fixtureId)) predByFixture.set(p.fixtureId, new Map());
+      predByFixture.get(p.fixtureId)!.set(p.userId, p);
+    }
+
+    const byRound = new Map<number, typeof doneFixtures>();
+    for (const f of doneFixtures) {
+      if (!byRound.has(f.round)) byRound.set(f.round, []);
+      byRound.get(f.round)!.push(f);
+    }
+
+    const rounds: RoundHistory[] = Array.from(byRound.entries())
+      .sort(([a], [b]) => b - a)
+      .map(([round, rFixtures]) => {
+        const fixtureRows = rFixtures.map((f) => ({
+          id: f.id,
+          homeShort: f.homeShort,
+          awayShort: f.awayShort,
+          homeCrest: f.homeCrest ?? null,
+          awayCrest: f.awayCrest ?? null,
+          kickoffAt: f.kickoffAt instanceof Date ? f.kickoffAt.toISOString() : String(f.kickoffAt),
+          resultHome: f.resultHome!,
+          resultAway: f.resultAway!,
+          memberPredictions: members.map((m) => {
+            const p = predByFixture.get(f.id)?.get(m.id);
+            return {
+              userId: m.id,
+              scoreHome: p?.scoreHome ?? null,
+              scoreAway: p?.scoreAway ?? null,
+              pointsEarned: p?.pointsEarned ?? 0,
+              isJoker: p?.isJoker ?? false,
+            };
+          }),
+        }));
+
+        const memberTotals = members
+          .map((m) => ({
+            userId: m.id,
+            name: m.name,
+            image: m.image ?? null,
+            avatar: m.name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2),
+            points: rFixtures.reduce((sum, f) => sum + (predByFixture.get(f.id)?.get(m.id)?.pointsEarned ?? 0), 0),
+          }))
+          .sort((a, b) => b.points - a.points);
+
+        return { round, fixtures: fixtureRows, memberTotals };
+      });
+
+    return { members, rounds };
+  });
+
+type RoundHistory = {
+  round: number;
+  fixtures: {
+    id: string; homeShort: string; awayShort: string;
+    homeCrest: string | null; awayCrest: string | null;
+    kickoffAt: string; resultHome: number; resultAway: number;
+    memberPredictions: { userId: string; scoreHome: number | null; scoreAway: number | null; pointsEarned: number; isJoker: boolean }[];
+  }[];
+  memberTotals: { userId: string; name: string; image: string | null; avatar: string; points: number }[];
+};
