@@ -104,6 +104,8 @@ export const fixtures = sqliteTable(
     externalId: text("external_id"),
     homeCrest: text("home_crest"),
     awayCrest: text("away_crest"),
+    homeTeamId: text("home_team_id"),
+    awayTeamId: text("away_team_id"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => [uniqueIndex("fixtures_competition_external_idx").on(t.competition, t.externalId)],
@@ -168,6 +170,45 @@ export const config = sqliteTable("config", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });
+
+// Team profiles synced from football-data.org. One row per team across all competitions.
+export const teams = sqliteTable("teams", {
+  id: text("id").primaryKey(), // football-data.org team ID as string
+  name: text("name").notNull(),
+  shortName: text("short_name").notNull(),
+  tla: text("tla").notNull(),
+  crestUrl: text("crest_url"),
+  founded: integer("founded"),
+  venue: text("venue"),
+  clubColors: text("club_colors"),
+  website: text("website"),
+  address: text("address"),
+  coachName: text("coach_name"),
+  coachNationality: text("coach_nationality"),
+  squadJson: text("squad_json"), // JSON: SquadMember[]
+  syncedAt: integer("synced_at", { mode: "timestamp" }).notNull(),
+});
+
+// Per-competition league standing. One row per (team, competition).
+export const teamStandings = sqliteTable(
+  "team_standings",
+  {
+    teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    competition: text("competition").notNull(),
+    position: integer("position").notNull().default(0),
+    played: integer("played").notNull().default(0),
+    won: integer("won").notNull().default(0),
+    drawn: integer("drawn").notNull().default(0),
+    lost: integer("lost").notNull().default(0),
+    goalsFor: integer("goals_for").notNull().default(0),
+    goalsAgainst: integer("goals_against").notNull().default(0),
+    goalDifference: integer("goal_difference").notNull().default(0),
+    points: integer("points").notNull().default(0),
+    form: text("form"),
+    syncedAt: integer("synced_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.competition] })],
+);
 
 // ─── Relations ────────────────────────────────────────────────────────────────
 

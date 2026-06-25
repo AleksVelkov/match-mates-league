@@ -3,11 +3,19 @@ import { eq, and, count, sql, isNull, isNotNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { user, groups, fixtures, predictions, seasons } from "@/db/schema";
+import { user, groups, fixtures, predictions, seasons, teams, teamStandings } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
 import { scoreFixture } from "@/lib/scoring";
-import { fetchMatchday, fetchAllMatches, mapStatus, COMPETITION_CODES } from "@/lib/football-data";
+import {
+  fetchMatchday,
+  fetchAllMatches,
+  fetchCompetitionTeams,
+  fetchCompetitionStandings,
+  mapStatus,
+  COMPETITION_CODES,
+  type FDTeam,
+} from "@/lib/football-data";
 import {
   getEnabledCompetitions as readEnabledCompetitions,
   setEnabledCompetitions as writeEnabledCompetitions,
@@ -143,9 +151,35 @@ export const syncCompetition = createServerFn({ method: "POST" })
 
     const { matches, rateLimit } = await fetchMatchday(code, data.matchday);
 
+    // Upsert minimal team rows (name + crest) so team pages work before full sync.
+    const seenTeams = new Map<string, FDTeam>();
+    for (const m of matches) {
+      seenTeams.set(String(m.homeTeam.id), m.homeTeam as FDTeam);
+      seenTeams.set(String(m.awayTeam.id), m.awayTeam as FDTeam);
+    }
+    const now = new Date();
+    for (const [teamId, t] of seenTeams) {
+      await db
+        .insert(teams)
+        .values({
+          id: teamId,
+          name: t.name,
+          shortName: t.shortName ?? t.tla,
+          tla: t.tla,
+          crestUrl: t.crest ?? null,
+          syncedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: teams.id,
+          set: { name: t.name, shortName: t.shortName ?? t.tla, tla: t.tla, crestUrl: t.crest ?? null },
+        });
+    }
+
     let upserted = 0;
     for (const m of matches) {
       const externalId = String(m.id);
+      const homeTeamId = String(m.homeTeam.id);
+      const awayTeamId = String(m.awayTeam.id);
       const status = mapStatus(m.status) as "upcoming" | "live" | "finished";
       const resultHome = m.score.fullTime.home ?? null;
       const resultAway = m.score.fullTime.away ?? null;
@@ -169,6 +203,8 @@ export const syncCompetition = createServerFn({ method: "POST" })
             round: m.matchday,
             homeCrest: m.homeTeam.crest ?? null,
             awayCrest: m.awayTeam.crest ?? null,
+            homeTeamId,
+            awayTeamId,
           })
           .where(eq(fixtures.id, fixtureId));
       } else {
@@ -183,6 +219,8 @@ export const syncCompetition = createServerFn({ method: "POST" })
           awayShort: m.awayTeam.tla,
           homeCrest: m.homeTeam.crest ?? null,
           awayCrest: m.awayTeam.crest ?? null,
+          homeTeamId,
+          awayTeamId,
           kickoffAt: new Date(m.utcDate),
           status,
           resultHome,
@@ -229,6 +267,30 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
     const { matches, rateLimit } = await fetchAllMatches(code);
 
     const now = new Date();
+
+    // Upsert minimal team rows from match data so team pages exist before full sync.
+    const seenTeams = new Map<string, FDTeam>();
+    for (const m of matches) {
+      seenTeams.set(String(m.homeTeam.id), m.homeTeam as FDTeam);
+      seenTeams.set(String(m.awayTeam.id), m.awayTeam as FDTeam);
+    }
+    for (const [teamId, t] of seenTeams) {
+      await db
+        .insert(teams)
+        .values({
+          id: teamId,
+          name: t.name,
+          shortName: t.shortName ?? t.tla,
+          tla: t.tla,
+          crestUrl: t.crest ?? null,
+          syncedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: teams.id,
+          set: { name: t.name, shortName: t.shortName ?? t.tla, tla: t.tla, crestUrl: t.crest ?? null },
+        });
+    }
+
     const ops: BatchItem<"sqlite">[] = [];
     let activeRound = Infinity;
     let maxRound = 0;
@@ -237,6 +299,8 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
       const status = mapStatus(m.status) as "upcoming" | "live" | "finished";
       const resultHome = m.score.fullTime.home ?? null;
       const resultAway = m.score.fullTime.away ?? null;
+      const homeTeamId = String(m.homeTeam.id);
+      const awayTeamId = String(m.awayTeam.id);
       maxRound = Math.max(maxRound, m.matchday);
       if (status !== "finished") activeRound = Math.min(activeRound, m.matchday);
 
@@ -253,6 +317,8 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
             awayShort: m.awayTeam.tla,
             homeCrest: m.homeTeam.crest ?? null,
             awayCrest: m.awayTeam.crest ?? null,
+            homeTeamId,
+            awayTeamId,
             kickoffAt: new Date(m.utcDate),
             status,
             resultHome,
@@ -270,6 +336,8 @@ export const syncCompetitionSeason = createServerFn({ method: "POST" })
               round: m.matchday,
               homeCrest: m.homeTeam.crest ?? null,
               awayCrest: m.awayTeam.crest ?? null,
+              homeTeamId,
+              awayTeamId,
             },
           }),
       );
@@ -351,6 +419,132 @@ export const setActiveRound = createServerFn({ method: "POST" })
     const db = getDb();
     await setCurrentRound(db, data.competition, data.round);
     return { ok: true };
+  });
+
+// ─── Team sync ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch full team profiles + squad + league standings for a competition and
+ * store them in the DB. Makes 2 API calls: /competitions/{code}/teams and
+ * /competitions/{code}/standings. Safe to re-run — all upserts.
+ */
+export const syncTeams = createServerFn({ method: "POST" })
+  .validator(z.object({ competition: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const code = COMPETITION_CODES[data.competition];
+    if (!code) throw new Error(`No API code for competition "${data.competition}"`);
+
+    const now = new Date();
+
+    const [{ teams: fdTeams, rateLimit: rl1 }, { standings, rateLimit: rl2 }] =
+      await Promise.all([
+        fetchCompetitionTeams(code),
+        fetchCompetitionStandings(code),
+      ]);
+
+    // Build standings map: teamId → standing entry
+    const standingsMap = new Map(standings.map((s) => [String(s.team.id), s]));
+
+    for (const t of fdTeams) {
+      const teamId = String(t.id);
+      const squadJson = JSON.stringify(
+        (t.squad ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          position: p.position,
+          shirtNumber: p.shirtNumber ?? null,
+          nationality: p.nationality ?? null,
+          dateOfBirth: p.dateOfBirth ?? null,
+        })),
+      );
+
+      await db
+        .insert(teams)
+        .values({
+          id: teamId,
+          name: t.name,
+          shortName: t.shortName ?? t.tla,
+          tla: t.tla,
+          crestUrl: t.crest ?? null,
+          founded: t.founded ?? null,
+          venue: t.venue ?? null,
+          clubColors: t.clubColors ?? null,
+          website: t.website ?? null,
+          address: t.address ?? null,
+          coachName: t.coach?.name ?? null,
+          coachNationality: t.coach?.nationality ?? null,
+          squadJson,
+          syncedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: teams.id,
+          set: {
+            name: t.name,
+            shortName: t.shortName ?? t.tla,
+            tla: t.tla,
+            crestUrl: t.crest ?? null,
+            founded: t.founded ?? null,
+            venue: t.venue ?? null,
+            clubColors: t.clubColors ?? null,
+            website: t.website ?? null,
+            address: t.address ?? null,
+            coachName: t.coach?.name ?? null,
+            coachNationality: t.coach?.nationality ?? null,
+            squadJson,
+            syncedAt: now,
+          },
+        });
+
+      // Upsert standing if this team appears in the standings table
+      const s = standingsMap.get(teamId);
+      if (s) {
+        await db
+          .insert(teamStandings)
+          .values({
+            teamId,
+            competition: data.competition,
+            position: s.position,
+            played: s.playedGames,
+            won: s.won,
+            drawn: s.draw,
+            lost: s.lost,
+            goalsFor: s.goalsFor,
+            goalsAgainst: s.goalsAgainst,
+            goalDifference: s.goalDifference,
+            points: s.points,
+            form: s.form ?? null,
+            syncedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: [teamStandings.teamId, teamStandings.competition],
+            set: {
+              position: s.position,
+              played: s.playedGames,
+              won: s.won,
+              drawn: s.draw,
+              lost: s.lost,
+              goalsFor: s.goalsFor,
+              goalsAgainst: s.goalsAgainst,
+              goalDifference: s.goalDifference,
+              points: s.points,
+              form: s.form ?? null,
+              syncedAt: now,
+            },
+          });
+      }
+    }
+
+    return {
+      teams: fdTeams.length,
+      standingsRows: standings.length,
+      requestsRemainingThisMinute: Math.min(
+        rl1.requestsAvailableMinute ?? 99,
+        rl2.requestsAvailableMinute ?? 99,
+      ),
+    };
   });
 
 // ─── Seasons ──────────────────────────────────────────────────────────────────

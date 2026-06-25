@@ -16,9 +16,10 @@ import {
   getSeasonsList,
   createSeason,
   deleteSeason,
+  syncTeams,
 } from "@/api/superadmin";
 import { COMPETITION_CODES } from "@/lib/football-data";
-import { Calendar, Plus, Trash2, Users, Trophy, Target, Database, Check, RefreshCw, AlertTriangle } from "lucide-react";
+import { Calendar, Plus, Trash2, Users, Trophy, Target, Database, Check, RefreshCw, AlertTriangle, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/superadmin")({
   head: () => ({ meta: [{ title: "ScorIQ — Super Admin" }] }),
@@ -60,7 +61,7 @@ function SuperAdminPage() {
     currentRounds,
     seasons,
   } = Route.useLoaderData();
-  const [tab, setTab] = useState<"overview" | "matches" | "groups" | "users" | "competitions" | "seasons">(
+  const [tab, setTab] = useState<"overview" | "matches" | "groups" | "users" | "competitions" | "seasons" | "teams">(
     "overview",
   );
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initial));
@@ -126,7 +127,7 @@ function SuperAdminPage() {
 
       {/* Tab bar */}
       <div className="flex flex-wrap gap-2 px-5 pb-4">
-        {(["overview", "matches", "groups", "users", "competitions", "seasons"] as const).map((t) => (
+        {(["overview", "matches", "teams", "groups", "users", "competitions", "seasons"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -258,6 +259,9 @@ function SuperAdminPage() {
 
         {/* ── Seasons ── */}
         {tab === "seasons" && <SeasonsTab initialSeasons={seasons} />}
+
+        {/* ── Teams ── */}
+        {tab === "teams" && <TeamsTab enabledCompetitions={initial} />}
 
         {/* ── Competitions ── */}
         {tab === "competitions" && (
@@ -820,6 +824,82 @@ function SeasonsTab({ initialSeasons }: { initialSeasons: Season[] }) {
           })}
         </ul>
       )}
+    </>
+  );
+}
+
+function TeamsTab({ enabledCompetitions }: { enabledCompetitions: string[] }) {
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncLog, setSyncLog] = useState<Array<{ competition: string; ok: boolean; text: string }>>([]);
+
+  async function handleSyncTeams(competition: string) {
+    setSyncing(competition);
+    setSyncLog((prev) => prev.filter((l) => l.competition !== competition));
+    try {
+      const r = await syncTeams({ data: { competition } });
+      setSyncLog((prev) => [
+        ...prev,
+        { competition, ok: true, text: `${r.teams} teams · ${r.standingsRows} standings · ${r.requestsRemainingThisMinute} req/min left` },
+      ]);
+    } catch (e) {
+      setSyncLog((prev) => [
+        ...prev,
+        { competition, ok: false, text: e instanceof Error ? e.message : "Sync failed" },
+      ]);
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  if (enabledCompetitions.length === 0) {
+    return (
+      <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
+        No leagues enabled. Enable leagues in the Competitions tab first.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground">
+        Sync team profiles, squads and league standings for each enabled competition.
+        Run this after syncing fixtures to populate team pages.
+      </p>
+      <p className="text-[11px] text-muted-foreground/70 -mt-1">
+        Note: xG and detailed match stats are not available on the football-data.org free tier.
+      </p>
+
+      <ul className="space-y-2">
+        {enabledCompetitions.map((competition) => {
+          const log = syncLog.find((l) => l.competition === competition);
+          const isSyncing = syncing === competition;
+          return (
+            <li key={competition} className="rounded-3xl border border-border bg-surface p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">{competition}</p>
+                  <p className="text-[11px] text-muted-foreground">{COMPETITION_CODES[competition]}</p>
+                </div>
+                <button
+                  onClick={() => handleSyncTeams(competition)}
+                  disabled={syncing !== null}
+                  className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+                >
+                  <ShieldCheck className={`h-4 w-4 ${isSyncing ? "animate-pulse" : ""}`} />
+                  {isSyncing ? "Syncing…" : "Sync teams"}
+                </button>
+              </div>
+              {log && (
+                <div
+                  className={`mt-3 rounded-xl px-3 py-2 text-xs ${log.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
+                >
+                  {log.text}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }

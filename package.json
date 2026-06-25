@@ -11,8 +11,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "db:migrate:local": "wrangler d1 execute scoriq-db --local --file=./migrations/0000_init.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0001_central_matches.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0002_user_profiles_seasons.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0003_team_crests.sql",
-    "db:migrate:remote": "wrangler d1 execute scoriq-db --remote --file=./migrations/0000_init.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0001_central_matches.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0002_user_profiles_seasons.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0003_team_crests.sql",
+    "db:migrate:local": "wrangler d1 execute scoriq-db --local --file=./migrations/0000_init.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0001_central_matches.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0002_user_profiles_seasons.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0003_team_crests.sql && wrangler d1 execute scoriq-db --local --file=./migrations/0004_team_pages.sql",
+    "db:migrate:remote": "wrangler d1 execute scoriq-db --remote --file=./migrations/0000_init.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0001_central_matches.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0002_user_profiles_seasons.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0003_team_crests.sql && wrangler d1 execute scoriq-db --remote --file=./migrations/0004_team_pages.sql",
     "build:cf": "vite build && npm run db:migrate:remote"
   },
   "dependencies": {

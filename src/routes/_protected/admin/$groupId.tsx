@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
@@ -60,6 +61,8 @@ type PredRow = {
   awayShort: string;
   homeCrest: string | null;
   awayCrest: string | null;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
   kickoff: string;
   status: "upcoming" | "live" | "finished";
   resultHome: number | null;
@@ -105,6 +108,8 @@ function AdminGroupPage() {
             awayShort: f.awayShort,
             homeCrest: f.homeCrest ?? null,
             awayCrest: f.awayCrest ?? null,
+            homeTeamId: f.homeTeamId ?? null,
+            awayTeamId: f.awayTeamId ?? null,
             kickoff,
             status: f.status,
             resultHome: f.resultHome ?? null,
@@ -454,7 +459,9 @@ function PredictionRow({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
         {/* Home */}
         <div className="flex items-center gap-2 min-w-0">
-          <TeamCrest short={fixture.homeShort} crestUrl={fixture.homeCrest} size={36} />
+          <TeamLink teamId={fixture.homeTeamId}>
+            <TeamCrest short={fixture.homeShort} crestUrl={fixture.homeCrest} size={36} />
+          </TeamLink>
           <p className="truncate text-sm font-semibold">{fixture.homeShort}</p>
         </div>
 
@@ -482,10 +489,22 @@ function PredictionRow({
         {/* Away */}
         <div className="flex items-center justify-end gap-2 min-w-0">
           <p className="truncate text-right text-sm font-semibold">{fixture.awayShort}</p>
-          <TeamCrest short={fixture.awayShort} crestUrl={fixture.awayCrest} size={36} />
+          <TeamLink teamId={fixture.awayTeamId}>
+            <TeamCrest short={fixture.awayShort} crestUrl={fixture.awayCrest} size={36} />
+          </TeamLink>
         </div>
       </div>
     </article>
+  );
+}
+
+/** Wraps children in a Link to the team page if teamId is available, else renders a plain span. */
+function TeamLink({ teamId, children }: { teamId: string | null; children: ReactNode }) {
+  if (!teamId) return <span>{children}</span>;
+  return (
+    <Link to="/team/$teamId" params={{ teamId }} className="shrink-0">
+      {children}
+    </Link>
   );
 }
 

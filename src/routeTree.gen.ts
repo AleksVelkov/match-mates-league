@@ -17,6 +17,7 @@ import { Route as ProtectedProfileRouteImport } from './routes/_protected/profil
 import { Route as ProtectedPredictionsRouteImport } from './routes/_protected/predictions'
 import { Route as ProtectedAdminIndexRouteImport } from './routes/_protected/admin/index'
 import { Route as AuthCallbackGoogleRouteImport } from './routes/auth/callback/google'
+import { Route as ProtectedTeamTeamIdRouteImport } from './routes/_protected/team/$teamId'
 import { Route as ProtectedAdminGroupIdRouteImport } from './routes/_protected/admin/$groupId'
 
 const SuperadminRoute = SuperadminRouteImport.update({
@@ -58,6 +59,11 @@ const AuthCallbackGoogleRoute = AuthCallbackGoogleRouteImport.update({
   path: '/auth/callback/google',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedTeamTeamIdRoute = ProtectedTeamTeamIdRouteImport.update({
+  id: '/team/$teamId',
+  path: '/team/$teamId',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedAdminGroupIdRoute = ProtectedAdminGroupIdRouteImport.update({
   id: '/admin/$groupId',
   path: '/admin/$groupId',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/predictions': typeof ProtectedPredictionsRoute
   '/profile': typeof ProtectedProfileRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/team/$teamId': typeof ProtectedTeamTeamIdRoute
   '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/admin/': typeof ProtectedAdminIndexRoute
 }
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProtectedProfileRoute
   '/': typeof ProtectedIndexRoute
   '/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/team/$teamId': typeof ProtectedTeamTeamIdRoute
   '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/admin': typeof ProtectedAdminIndexRoute
 }
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/_protected/profile': typeof ProtectedProfileRoute
   '/_protected/': typeof ProtectedIndexRoute
   '/_protected/admin/$groupId': typeof ProtectedAdminGroupIdRoute
+  '/_protected/team/$teamId': typeof ProtectedTeamTeamIdRoute
   '/auth/callback/google': typeof AuthCallbackGoogleRoute
   '/_protected/admin/': typeof ProtectedAdminIndexRoute
 }
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/predictions'
     | '/profile'
     | '/admin/$groupId'
+    | '/team/$teamId'
     | '/auth/callback/google'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/'
     | '/admin/$groupId'
+    | '/team/$teamId'
     | '/auth/callback/google'
     | '/admin'
   id:
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/_protected/profile'
     | '/_protected/'
     | '/_protected/admin/$groupId'
+    | '/_protected/team/$teamId'
     | '/auth/callback/google'
     | '/_protected/admin/'
   fileRoutesById: FileRoutesById
@@ -195,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/team/$teamId': {
+      id: '/_protected/team/$teamId'
+      path: '/team/$teamId'
+      fullPath: '/team/$teamId'
+      preLoaderRoute: typeof ProtectedTeamTeamIdRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/admin/$groupId': {
       id: '/_protected/admin/$groupId'
       path: '/admin/$groupId'
@@ -210,6 +229,7 @@ interface ProtectedRouteChildren {
   ProtectedProfileRoute: typeof ProtectedProfileRoute
   ProtectedIndexRoute: typeof ProtectedIndexRoute
   ProtectedAdminGroupIdRoute: typeof ProtectedAdminGroupIdRoute
+  ProtectedTeamTeamIdRoute: typeof ProtectedTeamTeamIdRoute
   ProtectedAdminIndexRoute: typeof ProtectedAdminIndexRoute
 }
 
@@ -218,6 +238,7 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedProfileRoute: ProtectedProfileRoute,
   ProtectedIndexRoute: ProtectedIndexRoute,
   ProtectedAdminGroupIdRoute: ProtectedAdminGroupIdRoute,
+  ProtectedTeamTeamIdRoute: ProtectedTeamTeamIdRoute,
   ProtectedAdminIndexRoute: ProtectedAdminIndexRoute,
 }
 

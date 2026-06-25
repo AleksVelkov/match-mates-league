@@ -30,6 +30,49 @@ export type FDMatch = {
   };
 };
 
+export type FDSquadMember = {
+  id: number;
+  name: string;
+  position: string; // "Goalkeeper" | "Defence" | "Midfield" | "Offence"
+  dateOfBirth?: string | null;
+  nationality?: string | null;
+  shirtNumber?: number | null;
+};
+
+export type FDTeam = {
+  id: number;
+  name: string;
+  shortName: string;
+  tla: string;
+  crest: string;
+  address?: string;
+  website?: string;
+  founded?: number;
+  clubColors?: string;
+  venue?: string;
+  coach?: {
+    id?: number;
+    name?: string;
+    nationality?: string;
+    dateOfBirth?: string;
+  } | null;
+  squad?: FDSquadMember[];
+};
+
+export type FDStandingEntry = {
+  position: number;
+  team: { id: number; name: string; shortName: string; tla: string; crest: string };
+  playedGames: number;
+  won: number;
+  draw: number;
+  lost: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  form?: string | null;
+};
+
 export type FDMatchesResponse = {
   matches: FDMatch[];
   resultSet?: { count: number; competitions: string; first: string; last: string; played: number };
@@ -95,4 +138,25 @@ export function mapStatus(fdStatus: FDMatch["status"]): "upcoming" | "live" | "f
   if (fdStatus === "FINISHED") return "finished";
   if (fdStatus === "IN_PLAY" || fdStatus === "PAUSED") return "live";
   return "upcoming";
+}
+
+/** All teams in a competition for the current season (includes squad on supported tiers). */
+export async function fetchCompetitionTeams(
+  competitionCode: string,
+): Promise<{ teams: FDTeam[]; rateLimit: RateLimitInfo }> {
+  const { data, rateLimit } = await fdFetch<{ teams: FDTeam[] }>(
+    `/competitions/${competitionCode}/teams`,
+  );
+  return { teams: data.teams ?? [], rateLimit };
+}
+
+/** League standings table (TOTAL type) for a competition. */
+export async function fetchCompetitionStandings(
+  competitionCode: string,
+): Promise<{ standings: FDStandingEntry[]; rateLimit: RateLimitInfo }> {
+  const { data, rateLimit } = await fdFetch<{
+    standings: Array<{ type: string; table: FDStandingEntry[] }>;
+  }>(`/competitions/${competitionCode}/standings`);
+  const total = data.standings?.find((s) => s.type === "TOTAL");
+  return { standings: total?.table ?? [], rateLimit };
 }
