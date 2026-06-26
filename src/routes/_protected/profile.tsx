@@ -4,9 +4,9 @@ import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { useTheme } from "@/components/ThemeToggle";
 import { signOut } from "@/api/auth";
 import { getAvailableLeagues } from "@/api/groups";
-import { getMyProfile, updateMyName, updateMyCountry, uploadAvatar, getSeasons, getMySeasonStats } from "@/api/profile";
+import { getMyProfile, updateMyName, updateMyCountry, uploadAvatar, getSeasons, getMySeasonStats, deleteMyAccount } from "@/api/profile";
 import { getFavoriteLeague, setFavoriteLeague } from "@/api/preferences";
-import { Camera, Check, ChevronDown, ChevronRight, Flame, LogOut, Moon, Sun, Target, Trophy, X } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronRight, Flame, LogOut, Moon, Sun, Target, Trash2, Trophy, X } from "lucide-react";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +93,8 @@ function ProfilePage() {
   const { theme, toggle, mounted } = useTheme();
 
   const [signingOut, setSigningOut] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
   const [leagueOpen, setLeagueOpen] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
@@ -107,6 +109,17 @@ function ProfilePage() {
       router.invalidate();
     } catch {
       setSigningOut(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await deleteMyAccount();
+      router.navigate({ to: "/login" });
+    } catch {
+      setDeleting(false);
+      setDeleteOpen(false);
     }
   }
 
@@ -205,12 +218,24 @@ function ProfilePage() {
               </span>
             </span>
           </button>
-          <button onClick={handleSignOut} disabled={signingOut} className="flex w-full items-center gap-3 px-4 py-4 text-left text-sm font-semibold text-destructive disabled:opacity-60">
+          <button onClick={handleSignOut} disabled={signingOut} className="flex w-full items-center gap-3 border-b border-border px-4 py-4 text-left text-sm font-semibold text-destructive disabled:opacity-60">
             <LogOut className="h-5 w-5" />
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
+          <button onClick={() => setDeleteOpen(true)} className="flex w-full items-center gap-3 px-4 py-4 text-left text-sm font-semibold text-destructive/70 hover:text-destructive">
+            <Trash2 className="h-5 w-5" />
+            Delete account
+          </button>
         </div>
       </section>
+
+      {deleteOpen && (
+        <DeleteAccountModal
+          deleting={deleting}
+          onConfirm={handleDeleteAccount}
+          onClose={() => setDeleteOpen(false)}
+        />
+      )}
 
       {/* ── Favorite league dropdown ── */}
       {leagues.length > 0 && (
@@ -474,6 +499,55 @@ function AvatarUpload({ image, name, onUploaded }: { image: string | null; name:
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+// ─── Delete account modal ─────────────────────────────────────────────────────
+
+function DeleteAccountModal({ deleting, onConfirm, onClose }: { deleting: boolean; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={!deleting ? onClose : undefined} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+        <div className="w-full max-w-[360px] animate-in fade-in zoom-in-95 duration-200">
+          <div className="overflow-hidden rounded-3xl border border-destructive/30 bg-surface shadow-card">
+            <div className="px-6 pb-2 pt-6">
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-destructive/15">
+                <Trash2 className="h-6 w-6 text-destructive" />
+              </div>
+              <p className="font-display text-2xl leading-tight">Delete account?</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                This permanently deletes your account, all your predictions, and removes you from every group. This action cannot be undone.
+              </p>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Under GDPR you have the right to erasure. All personal data will be removed from our servers immediately.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-4">
+              <button
+                onClick={onClose}
+                disabled={deleting}
+                className="rounded-2xl border border-border bg-surface py-3 text-sm font-semibold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                disabled={deleting}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-destructive py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {deleting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

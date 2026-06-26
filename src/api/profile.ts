@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setCookie } from "@tanstack/react-start/server";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { AwsClient } from "aws4fetch";
@@ -169,9 +170,30 @@ export const getMySeasonStats = createServerFn({ method: "GET" })
 
     return {
       seasonId: data.seasonId,
+
       points: Number(stats?.points ?? 0),
       exact: Number(stats?.exact ?? 0),
       predicted: Number(stats?.predicted ?? 0),
       correct: Number(stats?.correct ?? 0),
     };
   });
+
+/**
+ * Permanently deletes the authenticated user's account and all associated data.
+ * Deletion order: predictions → groupMembers → userProfiles → user
+ * (session + account rows cascade-delete from user via FK).
+ */
+export const deleteMyAccount = createServerFn({ method: "POST" }).handler(async () => {
+  const me = await requireUser();
+  const db = getDb();
+
+  await db.delete(predictions).where(eq(predictions.userId, me.id));
+  await db.delete(groupMembers).where(eq(groupMembers.userId, me.id));
+  await db.delete(userProfiles).where(eq(userProfiles.userId, me.id));
+  await db.delete(user).where(eq(user.id, me.id));
+
+  // Clear the session cookie so the browser doesn't carry a dead token
+  setCookie("scoriq_session", "", { maxAge: 0, path: "/" });
+
+  return { ok: true };
+});
