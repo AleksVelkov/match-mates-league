@@ -107,7 +107,7 @@ function GuidePage() {
               <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
                 <Badge label="Exact" color="bg-success/15 text-success" />
                 <div>
-                  <p className="font-semibold">Correct scoreline — 3 points</p>
+                  <p className="font-semibold">Correct scoreline — 5 points</p>
                   <p className="text-muted-foreground">
                     You predicted <strong>2–1</strong> and the result was <strong>2–1</strong>.
                   </p>
@@ -116,7 +116,7 @@ function GuidePage() {
               <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
                 <Badge label="Correct" color="bg-primary/15 text-primary" />
                 <div>
-                  <p className="font-semibold">Correct outcome — 1 point</p>
+                  <p className="font-semibold">Correct outcome — 2 points</p>
                   <p className="text-muted-foreground">
                     You predicted <strong>2–1</strong>, result was <strong>3–0</strong>. You got
                     the home win right but not the exact score.
@@ -149,7 +149,7 @@ function GuidePage() {
               <p className="font-semibold">Example</p>
               <p className="mt-1 text-muted-foreground">
                 You mark Arsenal vs Chelsea as your Joker and predict the exact score correctly
-                (3 pts). You earn <strong>6 points</strong> for that match instead of 3.
+                (5 pts). You earn <strong>10 points</strong> for that match instead of 5.
               </p>
             </div>
             <p className="mt-3">

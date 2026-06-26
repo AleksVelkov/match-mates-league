@@ -30,7 +30,7 @@ function getOutcome(
 }
 
 function calcPoints(outcome: Outcome, isJoker: boolean): number {
-  const base = outcome === "exact" ? 3 : outcome === "correct" ? 1 : 0;
+  const base = outcome === "exact" ? 5 : outcome === "correct" ? 2 : 0;
   return isJoker ? base * 2 : base;
 }
 
