@@ -15,6 +15,7 @@ import {
   Share2,
   CopyPlus,
   Crown,
+  Ellipsis,
   Flame,
   Settings,
   Trophy,
@@ -232,29 +233,15 @@ function AdminGroupPage() {
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div className="flex shrink-0 items-center gap-2">
-            {isOwner && (
-              <button onClick={() => setManageOpen(true)} title="Manage group"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
-                <Settings className="h-5 w-5" />
-              </button>
-            )}
-            {siblingCount > 0 && (
-              <button onClick={handleCopyPredictions} disabled={copying}
-                title={`Copy predictions to ${siblingCount} other group${siblingCount > 1 ? "s" : ""}`}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface disabled:opacity-50">
-                {copying
-                  ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  : <CopyPlus className="h-5 w-5" />}
-              </button>
-            )}
-            <button onClick={() => setStandingsOpen(true)} title="Standings"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
-              <Trophy className="h-5 w-5" />
-            </button>
-            <button onClick={() => setShareOpen(true)} title="Invite friends"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface">
-              <Share2 className="h-5 w-5" />
-            </button>
+            <GroupActionMenu
+              isOwner={isOwner}
+              siblingCount={siblingCount}
+              copying={copying}
+              onManage={() => setManageOpen(true)}
+              onCopy={handleCopyPredictions}
+              onStandings={() => setStandingsOpen(true)}
+              onShare={() => setShareOpen(true)}
+            />
             <img src="/logo.png" alt="ScorIQ" className="h-9 w-9 object-contain opacity-80" />
           </div>
         </div>
@@ -784,6 +771,79 @@ function ShareSheet({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Group action menu ────────────────────────────────────────────────────────
+
+function GroupActionMenu({
+  isOwner, siblingCount, copying, onManage, onCopy, onStandings, onShare,
+}: {
+  isOwner: boolean; siblingCount: number; copying: boolean;
+  onManage: () => void; onCopy: () => void; onStandings: () => void; onShare: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const actions = [
+    ...(isOwner ? [{ icon: <Settings className="h-5 w-5" />, label: "Manage", onClick: onManage }] : []),
+    ...(siblingCount > 0 ? [{
+      icon: copying
+        ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        : <CopyPlus className="h-5 w-5" />,
+      label: "Copy picks", onClick: onCopy,
+    }] : []),
+    { icon: <Trophy className="h-5 w-5" />, label: "Standings", onClick: onStandings },
+    { icon: <Share2 className="h-5 w-5" />, label: "Invite", onClick: onShare },
+  ];
+
+  return (
+    <div className="relative">
+      {/* Invisible backdrop to close on outside tap */}
+      {open && (
+        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+      )}
+
+      {/* Dropdown panel */}
+      <div
+        className={[
+          "absolute right-0 top-12 z-50 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-surface/95 p-2 shadow-card backdrop-blur-md",
+          "transition-all duration-200 ease-out",
+          open ? "scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0",
+        ].join(" ")}
+        style={{ transformOrigin: "top right", minWidth: 160 }}
+      >
+        {actions.map((action, i) => (
+          <button
+            key={action.label}
+            onClick={() => { action.onClick(); setOpen(false); }}
+            style={{
+              transitionDelay: open ? `${i * 45}ms` : "0ms",
+              transform: open ? "translateY(0)" : "translateY(8px)",
+              opacity: open ? 1 : 0,
+            }}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-3.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition-all duration-150 hover:border-primary/40 hover:text-foreground"
+          >
+            {action.icon}
+            {action.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={[
+          "grid h-10 w-10 place-items-center rounded-xl border transition-colors duration-150",
+          open
+            ? "border-primary/50 bg-primary/10 text-primary"
+            : "border-border bg-surface text-foreground",
+        ].join(" ")}
+      >
+        <Ellipsis
+          className={["h-5 w-5 transition-transform duration-300", open ? "rotate-90" : ""].join(" ")}
+        />
+      </button>
+    </div>
   );
 }
 
