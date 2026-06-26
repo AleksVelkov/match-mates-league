@@ -18,44 +18,42 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-background">
-      <main className="flex-1 pb-28">{children}</main>
+      <main className="flex-1 pb-24">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
-        <div className="mx-3 mb-3 w-full max-w-[420px] rounded-3xl border border-border bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl">
-          <ul className="grid grid-cols-3">
-            {tabs.map((t) => {
-              const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
-              const Icon = t.icon;
-              return (
-                <li key={t.to}>
-                  <Link
-                    to={t.to}
-                    className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition-all"
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-nav/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+        <ul className="mx-auto grid w-full max-w-[440px] grid-cols-3">
+          {tabs.map((t) => {
+            const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
+            const Icon = t.icon;
+            return (
+              <li key={t.to}>
+                <Link
+                  to={t.to}
+                  className="flex flex-col items-center justify-center gap-0.5 py-1.5 transition-all"
+                >
+                  <span
+                    className={[
+                      "grid h-8 w-8 place-items-center rounded-xl transition-all",
+                      active
+                        ? "bg-primary text-primary-foreground shadow-glow"
+                        : "text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
                   >
-                    <span
-                      className={[
-                        "grid h-10 w-10 place-items-center rounded-2xl transition-all",
-                        active
-                          ? "bg-primary text-primary-foreground shadow-glow"
-                          : "text-muted-foreground hover:text-foreground",
-                      ].join(" ")}
-                    >
-                      <Icon className="h-5 w-5" strokeWidth={2.4} />
-                    </span>
-                    <span
-                      className={[
-                        "text-[10px] font-semibold uppercase tracking-wider",
-                        active ? "text-foreground" : "text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {t.label}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                    <Icon className="h-5 w-5" strokeWidth={2.4} />
+                  </span>
+                  <span
+                    className={[
+                      "text-[9px] font-semibold uppercase tracking-wider",
+                      active ? "text-foreground" : "text-muted-foreground",
+                    ].join(" ")}
+                  >
+                    {t.label}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
     </div>
   );

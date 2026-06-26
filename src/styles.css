@@ -37,6 +37,7 @@
   --color-ring: var(--ring);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-nav: var(--nav);
 
   --font-display: "Bebas Neue", "Inter", sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -55,6 +56,9 @@
 
   --surface: oklch(0.20 0.025 240);
   --surface-2: oklch(0.24 0.03 240);
+
+  /* Bottom nav — slightly elevated from the background in dark mode */
+  --nav: oklch(0.22 0.025 240);
 
   --card: oklch(0.20 0.025 240);
   --card-foreground: oklch(0.98 0.005 240);
@@ -97,6 +101,9 @@
 
   --surface: oklch(1 0 0);
   --surface-2: oklch(0.96 0.01 240);
+
+  /* Bottom nav — warm "dirty white" so it reads distinct from the pages */
+  --nav: oklch(0.93 0.012 90);
 
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.02 240);
