@@ -1,12 +1,12 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { useTheme } from "@/components/ThemeToggle";
 import { signOut } from "@/api/auth";
 import { getAvailableLeagues } from "@/api/groups";
 import { getMyProfile, updateMyName, updateMyCountry, uploadAvatar, getSeasons, getMySeasonStats } from "@/api/profile";
 import { getFavoriteLeague, setFavoriteLeague } from "@/api/preferences";
-import { Camera, Check, ChevronDown, Flame, LogOut, Moon, Sun, Target, Trophy, X } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronRight, Flame, LogOut, Moon, Sun, Target, Trophy, X } from "lucide-react";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -285,6 +285,32 @@ function ProfilePage() {
         </section>
       )}
 
+      {/* ── Preferences ── */}
+      <section className="px-5 pb-4">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Preferences</p>
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+          <UsageDataRow />
+          <div className="border-t border-border">
+            <NotificationsRow />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Legal ── */}
+      <section className="px-5 pb-8">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Legal</p>
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+          <Link to="/privacy-policy" className="flex items-center justify-between border-b border-border px-4 py-4">
+            <span className="text-sm font-semibold">Privacy Policy</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <Link to="/terms" className="flex items-center justify-between px-4 py-4">
+            <span className="text-sm font-semibold">Terms of Service</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+        </div>
+      </section>
+
       {/* ── Country picker modal ── */}
       {countryOpen && (
         <CountryPickerModal
@@ -304,6 +330,99 @@ function ProfilePage() {
         />
       )}
     </AppShell>
+  );
+}
+
+// ─── Preference helpers ───────────────────────────────────────────────────────
+
+function useLocalBool(key: string, defaultVal: boolean): [boolean, (v: boolean) => void] {
+  const [val, setVal] = useState(defaultVal);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored !== null) setVal(stored === "true");
+    } catch {}
+    setHydrated(true);
+  }, [key]);
+
+  function set(v: boolean) {
+    setVal(v);
+    try { localStorage.setItem(key, String(v)); } catch {}
+  }
+
+  return [hydrated ? val : defaultVal, set];
+}
+
+function ToggleSwitch({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={() => !disabled && onChange(!on)}
+      disabled={disabled}
+      aria-checked={on}
+      role="switch"
+      className={["relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50", on ? "bg-primary" : "bg-muted/40"].join(" ")}
+    >
+      <span className={["inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform", on ? "translate-x-[22px]" : "translate-x-0.5"].join(" ")} />
+    </button>
+  );
+}
+
+function UsageDataRow() {
+  const [enabled, setEnabled] = useLocalBool("scoriq_analytics", false);
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Share usage data</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+          Anonymous analytics to help improve ScorIQ. No personal data is ever shared.
+        </p>
+      </div>
+      <ToggleSwitch on={enabled} onChange={setEnabled} />
+    </div>
+  );
+}
+
+function NotificationsRow() {
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPermission(Notification.permission);
+    }
+  }, []);
+
+  async function handleToggle() {
+    if (permission !== "default") return;
+    const result = await Notification.requestPermission();
+    setPermission(result);
+  }
+
+  const isOn = permission === "granted";
+  const isDenied = permission === "denied";
+  const isUnsupported = permission === "unsupported";
+
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Notifications</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground" suppressHydrationWarning>
+          {isDenied
+            ? "Blocked — allow in browser settings to enable."
+            : isUnsupported
+              ? "Not supported on this browser."
+              : isOn
+                ? "You'll be notified when results are published."
+                : "Get notified when new results are available."}
+        </p>
+      </div>
+      <ToggleSwitch
+        on={isOn}
+        onChange={handleToggle}
+        disabled={isDenied || isUnsupported || isOn}
+      />
+    </div>
   );
 }
 
