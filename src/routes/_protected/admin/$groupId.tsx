@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
+import { EmojiPicker } from "@/components/EmojiPicker";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, updateGroupSettings, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
 import { getLeaderboard } from "@/api/leaderboard";
@@ -636,8 +637,7 @@ function ManageSheet({
               <div className="flex gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Icon</label>
-                  <input type="text" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4}
-                    className="h-12 w-16 rounded-2xl border border-border bg-background text-center text-2xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" />
+                  <EmojiPicker value={emoji} onChange={setEmoji} />
                 </div>
                 <div className="flex flex-1 flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Name</label>

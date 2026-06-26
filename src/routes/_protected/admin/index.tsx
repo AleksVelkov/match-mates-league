@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell, ScreenHeader } from "@/components/AppShell";
 import { getMyGroups, getAvailableLeagues, createGroup, joinGroup } from "@/api/groups";
+import { EmojiPicker } from "@/components/EmojiPicker";
 import { Crown, ChevronRight, Plus, Hash } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/admin/")({
@@ -204,12 +205,7 @@ function CreateGroupSheet({
         </Field>
 
         <Field label="Emoji">
-          <input
-            type="text"
-            value={emoji}
-            onChange={(e) => setEmoji(e.target.value.slice(-2) || "⚽")}
-            className="input-base w-20 text-center text-2xl"
-          />
+          <EmojiPicker value={emoji} onChange={setEmoji} />
         </Field>
 
         {error && (
