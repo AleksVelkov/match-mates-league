@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
+import { LeagueCrest } from "@/components/LeagueCrest";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, updateGroupSettings, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
 import { getLeaderboard } from "@/api/leaderboard";
@@ -249,9 +250,12 @@ function AdminGroupPage() {
           </div>
         </div>
         {/* Row 2: eyebrow + title — full width, no competition from buttons */}
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-          {group.competition} · Round {group.round}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <LeagueCrest competition={group.competition} size={18} />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            {group.competition} · Round {group.round}
+          </p>
+        </div>
         <h1 className={[
           "mt-1 font-display leading-tight",
           group.name.length > 18 ? "text-3xl" : "text-4xl",

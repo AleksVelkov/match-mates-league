@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { NoGroup } from "@/components/NoGroup";
 import { TeamCrest } from "@/components/TeamCrest";
+import { LeagueCrest } from "@/components/LeagueCrest";
 import { getMe } from "@/api/auth";
 import { getMyGroups } from "@/api/groups";
 import { getLeagueFixtures } from "@/api/fixtures";
@@ -109,8 +110,11 @@ function HomePage() {
 
       {/* League fixtures */}
       <section className="px-5 pb-8">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-display text-xl">{favLeague}</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LeagueCrest competition={favLeague} size={26} />
+            <h2 className="font-display text-xl">{favLeague}</h2>
+          </div>
           {leagueFixtures.length > 0 && (
             <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Round {leagueFixtures[0].round}

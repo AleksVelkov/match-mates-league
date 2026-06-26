@@ -17,6 +17,28 @@ export const COMPETITION_CODES: Record<string, string> = {
   Championship: "ELC",
 };
 
+// Canonical league emblem URLs from football-data.org's crest CDN. These don't
+// always follow the {code}.png pattern (e.g. La Liga, Serie A, Eredivisie), so the
+// verified URLs are listed explicitly.
+export const COMPETITION_EMBLEMS: Record<string, string> = {
+  "Premier League": "https://crests.football-data.org/PL.png",
+  "Champions League": "https://crests.football-data.org/CL.png",
+  "Europa League": "https://crests.football-data.org/EL.png",
+  "Conference League": "https://crests.football-data.org/UCL.png",
+  "La Liga": "https://crests.football-data.org/laliga.png",
+  Bundesliga: "https://crests.football-data.org/BL1.png",
+  "Serie A": "https://crests.football-data.org/c111.png",
+  "Ligue 1": "https://crests.football-data.org/FL1.png",
+  Eredivisie: "https://crests.football-data.org/ED.png",
+  "Primeira Liga": "https://crests.football-data.org/PPL.png",
+  Championship: "https://crests.football-data.org/ELC.png",
+};
+
+/** Emblem URL for a competition name, or null if we don't have one. */
+export function leagueEmblemUrl(competition: string): string | null {
+  return COMPETITION_EMBLEMS[competition] ?? null;
+}
+
 export type FDMatch = {
   id: number;
   matchday: number;
