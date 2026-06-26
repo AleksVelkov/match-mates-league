@@ -138,6 +138,17 @@
   --ring: oklch(0.72 0.20 140);
 }
 
+/* Bottom-nav pill: subtle on-brand gradient (lime → base → blue), tinted over the
+   themeable --nav base so it reads well in both light and dark. */
+.nav-surface {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 22%, var(--nav)) 0%,
+    var(--nav) 48%,
+    color-mix(in oklab, var(--accent) 24%, var(--nav)) 100%
+  );
+}
+
 
 @layer base {
   * {
