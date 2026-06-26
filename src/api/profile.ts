@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie } from "@tanstack/react-start/server";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import { AwsClient } from "aws4fetch";
 import { getDb } from "@/db/client";
-import { user, userProfiles, seasons, predictions, fixtures, groupMembers, groups } from "@/db/schema";
+import { user, userProfiles, seasons, predictions, fixtures, groupMembers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
 
@@ -181,7 +181,14 @@ export const getSeasons = createServerFn({ method: "GET" }).handler(async () => 
   return db.select().from(seasons).orderBy(seasons.startDate);
 });
 
-/** Stats for the current user within a season's date range. */
+/**
+ * Personal stats for the current user within a season's date range.
+ *
+ * Predictions are per-group, so a user in several groups for the same league has
+ * multiple prediction rows per match. To avoid double-counting, we collapse to one
+ * row per fixture — keeping the user's best result for that match — so the summary
+ * reflects their season once, regardless of how many groups they're in.
+ */
 export const getMySeasonStats = createServerFn({ method: "GET" })
   .validator(z.object({ seasonId: z.string() }))
   .handler(async ({ data }) => {
@@ -191,43 +198,52 @@ export const getMySeasonStats = createServerFn({ method: "GET" })
     const [season] = await db.select().from(seasons).where(eq(seasons.id, data.seasonId)).limit(1);
     if (!season) throw new Error("Season not found");
 
-    // All my groups
-    const myGroups = await db
-      .select({ id: groups.id, name: groups.name, emoji: groups.emoji })
-      .from(groupMembers)
-      .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-      .where(eq(groupMembers.userId, me.id));
-
-    if (!myGroups.length) return { seasonId: data.seasonId, points: 0, exact: 0, predicted: 0, correct: 0 };
-
-    const groupIds = myGroups.map((g) => g.id);
-
-    const [stats] = await db
+    const rows = await db
       .select({
-        points: sql<number>`COALESCE(SUM(${predictions.pointsEarned}), 0)`,
-        exact: sql<number>`COALESCE(SUM(CASE WHEN ${predictions.scoreHome} = ${fixtures.resultHome} AND ${predictions.scoreAway} = ${fixtures.resultAway} AND ${fixtures.resultHome} IS NOT NULL THEN 1 ELSE 0 END), 0)`,
-        predicted: sql<number>`COUNT(${predictions.id})`,
-        correct: sql<number>`COALESCE(SUM(CASE WHEN SIGN(CAST(${predictions.scoreHome} AS REAL) - CAST(${predictions.scoreAway} AS REAL)) = SIGN(CAST(${fixtures.resultHome} AS REAL) - CAST(${fixtures.resultAway} AS REAL)) AND ${fixtures.resultHome} IS NOT NULL THEN 1 ELSE 0 END), 0)`,
+        fixtureId: predictions.fixtureId,
+        scoreHome: predictions.scoreHome,
+        scoreAway: predictions.scoreAway,
+        pointsEarned: predictions.pointsEarned,
+        resultHome: fixtures.resultHome,
+        resultAway: fixtures.resultAway,
       })
       .from(predictions)
       .innerJoin(fixtures, eq(predictions.fixtureId, fixtures.id))
       .where(
         and(
           eq(predictions.userId, me.id),
-          sql`${predictions.groupId} IN (${sql.join(groupIds.map((id) => sql`${id}`), sql`, `)})`,
           gte(fixtures.kickoffAt, season.startDate),
           lte(fixtures.kickoffAt, season.endDate),
         ),
       );
 
-    return {
-      seasonId: data.seasonId,
+    // Collapse to one row per fixture, keeping the best-scoring prediction.
+    const bestByFixture = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const prev = bestByFixture.get(r.fixtureId);
+      if (!prev || (r.pointsEarned ?? -1) > (prev.pointsEarned ?? -1)) {
+        bestByFixture.set(r.fixtureId, r);
+      }
+    }
 
-      points: Number(stats?.points ?? 0),
-      exact: Number(stats?.exact ?? 0),
-      predicted: Number(stats?.predicted ?? 0),
-      correct: Number(stats?.correct ?? 0),
-    };
+    let points = 0;
+    let exact = 0;
+    let correct = 0;
+    let predicted = 0;
+    for (const r of bestByFixture.values()) {
+      if (r.scoreHome === null || r.scoreAway === null) continue;
+      predicted++;
+      points += r.pointsEarned ?? 0;
+      if (r.resultHome === null || r.resultAway === null) continue; // not finished
+      if (r.scoreHome === r.resultHome && r.scoreAway === r.resultAway) {
+        exact++;
+        correct++;
+      } else if (Math.sign(r.scoreHome - r.scoreAway) === Math.sign(r.resultHome - r.resultAway)) {
+        correct++;
+      }
+    }
+
+    return { seasonId: data.seasonId, points, exact, predicted, correct };
   });
 
 /**
