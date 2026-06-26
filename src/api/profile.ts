@@ -117,7 +117,7 @@ export const uploadAvatar = createServerFn({ method: "POST" })
     if (!ext) throw new Error("Unsupported image type. Please use PNG, JPEG, or WebP.");
 
     // 2. Decode base64 safely.
-    let bytes: Uint8Array;
+    let bytes: Uint8Array<ArrayBuffer>;
     try {
       const binary = atob(data.base64);
       bytes = new Uint8Array(binary.length);

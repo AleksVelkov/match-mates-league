@@ -17,7 +17,7 @@ function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function deriveHex(password: string, salt: Uint8Array, iterations: number): Promise<string> {
+async function deriveHex(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
