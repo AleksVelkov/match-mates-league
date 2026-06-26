@@ -321,6 +321,17 @@ function ProfilePage() {
         </div>
       </section>
 
+      {/* ── Help ── */}
+      <section className="px-5 pb-4">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Help</p>
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+          <Link to="/guide" className="flex items-center justify-between px-4 py-4">
+            <span className="text-sm font-semibold">How to play</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+        </div>
+      </section>
+
       {/* ── Legal ── */}
       <section className="px-5 pb-8">
         <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Legal</p>

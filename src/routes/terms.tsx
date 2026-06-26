@@ -127,8 +127,8 @@ function TermsPage() {
             <p>
               We may suspend or terminate your account if you violate these terms. You may delete your
               account at any time by contacting us at{" "}
-              <a href="mailto:ace6vel@gmail.com" className="text-primary underline underline-offset-2">
-                ace6vel@gmail.com
+              <a href="mailto:contact@scoriq.app" className="text-primary underline underline-offset-2">
+                contact@scoriq.app
               </a>. On termination, your prediction data and group memberships will be removed.
             </p>
           </section>

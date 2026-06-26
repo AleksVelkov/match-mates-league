@@ -32,8 +32,8 @@ function PrivacyPolicyPage() {
             </p>
             <p className="mt-2">
               Questions about this policy can be sent to{" "}
-              <a href="mailto:ace6vel@gmail.com" className="text-primary underline underline-offset-2">
-                ace6vel@gmail.com
+              <a href="mailto:contact@scoriq.app" className="text-primary underline underline-offset-2">
+                contact@scoriq.app
               </a>.
             </p>
           </section>
@@ -133,8 +133,8 @@ function PrivacyPolicyPage() {
             </ul>
             <p className="mt-3">
               To exercise any of these rights, email{" "}
-              <a href="mailto:ace6vel@gmail.com" className="text-primary underline underline-offset-2">
-                ace6vel@gmail.com
+              <a href="mailto:contact@scoriq.app" className="text-primary underline underline-offset-2">
+                contact@scoriq.app
               </a>{" "}
               from the address associated with your account. We will respond within 30 days.
             </p>
