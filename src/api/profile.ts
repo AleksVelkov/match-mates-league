@@ -70,8 +70,40 @@ export const updateMyCountry = createServerFn({ method: "POST" })
  * Proxy avatar upload: client sends base64 image, server uploads to DO Spaces
  * and saves the URL — no browser-to-S3 connection, so no CORS needed.
  */
+// Only these image types may be uploaded; the extension is derived from the
+// validated type (never from the user-supplied filename).
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/** Verify the decoded bytes actually match the claimed image type (magic bytes). */
+function sniffImageType(bytes: Uint8Array, contentType: string): boolean {
+  if (contentType === "image/png") {
+    return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  }
+  if (contentType === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (contentType === "image/webp") {
+    return (
+      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && // "RIFF"
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50  // "WEBP"
+    );
+  }
+  return false;
+}
+
 export const uploadAvatar = createServerFn({ method: "POST" })
-  .validator(z.object({ filename: z.string(), contentType: z.string(), base64: z.string() }))
+  .validator(
+    z.object({
+      filename: z.string().max(255),
+      contentType: z.string(),
+      base64: z.string(),
+    }),
+  )
   .handler(async ({ data }) => {
     const me = await requireUser();
     const env = getEnvStore();
@@ -80,11 +112,30 @@ export const uploadAvatar = createServerFn({ method: "POST" })
       throw new Error("Avatar uploads are not configured. Contact the administrator.");
     }
 
-    const binary = atob(data.base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    // 1. Validate the claimed content type against an allowlist.
+    const ext = ALLOWED_IMAGE_TYPES[data.contentType];
+    if (!ext) throw new Error("Unsupported image type. Please use PNG, JPEG, or WebP.");
 
-    const ext = data.filename.split(".").pop() ?? "jpg";
+    // 2. Decode base64 safely.
+    let bytes: Uint8Array;
+    try {
+      const binary = atob(data.base64);
+      bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    } catch {
+      throw new Error("Invalid image data.");
+    }
+
+    // 3. Enforce a size cap.
+    if (bytes.length === 0) throw new Error("Image is empty.");
+    if (bytes.length > MAX_AVATAR_BYTES) throw new Error("Image is too large (max 5 MB).");
+
+    // 4. Confirm the bytes really are the claimed image type.
+    if (!sniffImageType(bytes, data.contentType)) {
+      throw new Error("File does not appear to be a valid image.");
+    }
+
+    // 5. Build a key from the trusted user id + server-controlled extension only.
     const key = `avatars/${me.id}/${Date.now()}.${ext}`;
     const endpoint = env.DO_SPACES_ENDPOINT.replace(/\/$/, "");
     const publicUrl = `${endpoint}/${env.DO_SPACES_BUCKET}/${key}`;
@@ -112,8 +163,9 @@ export const uploadAvatar = createServerFn({ method: "POST" })
       body: bytes,
     });
     if (!res.ok) {
-      const msg = await res.text().catch(() => res.statusText);
-      throw new Error(`Storage upload failed (${res.status}): ${msg}`);
+      // Log detail server-side; surface a generic message.
+      console.error("Avatar storage upload failed:", res.status, await res.text().catch(() => res.statusText));
+      throw new Error("Upload failed. Please try again.");
     }
 
     const db = getDb();

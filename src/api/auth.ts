@@ -4,9 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { user, account } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/auth";
+import { hashPassword, verifyPassword, needsRehash } from "@/lib/auth";
 import { createSession, destroySession, getSession } from "@/lib/session";
 import { getEnvStore } from "@/lib/env-store";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const signUp = createServerFn({ method: "POST" })
   .validator(
@@ -18,6 +19,9 @@ export const signUp = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const db = getDb();
+
+    // Throttle account creation per IP to curb abuse.
+    await enforceRateLimit(`signup:ip:${getClientIp()}`, 5, 3600);
 
     const existing = await db
       .select()
@@ -63,11 +67,16 @@ export const signIn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const db = getDb();
+    const email = data.email.toLowerCase();
+
+    // Throttle by IP and by targeted account to blunt brute-force / credential stuffing.
+    await enforceRateLimit(`signin:ip:${getClientIp()}`, 20, 900);
+    await enforceRateLimit(`signin:email:${email}`, 5, 900);
 
     const [u] = await db
       .select()
       .from(user)
-      .where(eq(user.email, data.email.toLowerCase()))
+      .where(eq(user.email, email))
       .limit(1);
 
     if (!u) throw new Error("Invalid email or password");
@@ -82,6 +91,14 @@ export const signIn = createServerFn({ method: "POST" })
 
     const valid = await verifyPassword(data.password, acc.password);
     if (!valid) throw new Error("Invalid email or password");
+
+    // Transparently upgrade legacy / weaker hashes on successful login.
+    if (needsRehash(acc.password)) {
+      try {
+        const upgraded = await hashPassword(data.password);
+        await db.update(account).set({ password: upgraded, updatedAt: new Date() }).where(eq(account.id, acc.id));
+      } catch { /* non-fatal: login still succeeds */ }
+    }
 
     await createSession(u.id);
     return { ok: true, name: u.name };
@@ -132,6 +149,8 @@ export const exchangeGoogleCode = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const env = getEnvStore();
 
+    await enforceRateLimit(`oauth:ip:${getClientIp()}`, 30, 900);
+
     // CSRF check
     const storedState = getCookie("scoriq_oauth_state");
     if (!storedState || storedState !== data.state) throw new Error("Invalid OAuth state — please try again.");
@@ -157,8 +176,9 @@ export const exchangeGoogleCode = createServerFn({ method: "POST" })
       }),
     });
     if (!tokenRes.ok) {
-      const text = await tokenRes.text().catch(() => tokenRes.statusText);
-      throw new Error(`Google token exchange failed: ${text}`);
+      // Log detail server-side; return a generic message to the client.
+      console.error("Google token exchange failed:", await tokenRes.text().catch(() => tokenRes.statusText));
+      throw new Error("Google sign-in failed. Please try again.");
     }
     const tokens = await tokenRes.json() as { access_token: string; id_token?: string };
 
@@ -166,7 +186,7 @@ export const exchangeGoogleCode = createServerFn({ method: "POST" })
     const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
-    if (!userRes.ok) throw new Error("Failed to fetch Google user info.");
+    if (!userRes.ok) throw new Error("Google sign-in failed. Please try again.");
     const googleUser = await userRes.json() as {
       id: string;
       email: string;
@@ -174,6 +194,12 @@ export const exchangeGoogleCode = createServerFn({ method: "POST" })
       picture?: string;
       verified_email?: boolean;
     };
+
+    // Only trust the email (for account creation/linking) if Google says it's verified.
+    // Otherwise an unverified-email Google account could hijack a password account.
+    if (googleUser.verified_email !== true) {
+      throw new Error("Your Google email address is not verified.");
+    }
 
     const db = getDb();
     const now = new Date();

@@ -172,6 +172,13 @@ export const config = sqliteTable("config", {
   value: text("value").notNull(),
 });
 
+// Fixed-window rate limiting for auth/join endpoints.
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  resetAt: integer("reset_at").notNull(), // epoch ms
+});
+
 // Team profiles synced from football-data.org. One row per team across all competitions.
 export const teams = sqliteTable("teams", {
   id: text("id").primaryKey(), // football-data.org team ID as string

@@ -5,16 +5,35 @@ import { getDb } from "@/db/client";
 import { user, groups, groupMembers } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { getEnabledCompetitions, getCurrentRound } from "@/lib/leagues";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
+// Unambiguous alphabet (no 0/O/1/I/L) for the random portion of invite codes.
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const CODE_LEN = 6; // 31^6 ≈ 887M combinations — not feasible to brute-force
+
+/** Cryptographically-random invite code, e.g. "PRL-K7QF2M". */
 function generateInviteCode(name: string): string {
   const prefix = name
     .split(" ")
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("")
+    .replace(/[^A-Z]/g, "")
     .slice(0, 3)
     .padEnd(3, "X");
-  const suffix = Math.floor(1000 + Math.random() * 9000);
+  const bytes = crypto.getRandomValues(new Uint8Array(CODE_LEN));
+  const suffix = Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
   return `${prefix}-${suffix}`;
+}
+
+/** Generate an invite code guaranteed not to collide with an existing group. */
+async function uniqueInviteCode(db: ReturnType<typeof getDb>, name: string): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const code = generateInviteCode(name);
+    const [clash] = await db.select({ id: groups.id }).from(groups).where(eq(groups.inviteCode, code)).limit(1);
+    if (!clash) return code;
+  }
+  // Extremely unlikely; fall back to a longer random tail.
+  return generateInviteCode(name) + crypto.randomUUID().slice(0, 4).toUpperCase();
 }
 
 /** Leagues the super admin has made available for end users to create groups in. */
@@ -91,7 +110,7 @@ export const createGroup = createServerFn({ method: "POST" })
     }
 
     const id = crypto.randomUUID();
-    const inviteCode = generateInviteCode(data.name);
+    const inviteCode = await uniqueInviteCode(db, data.name);
     const now = new Date();
 
     await db.insert(groups).values({
@@ -198,6 +217,10 @@ export const joinGroup = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const user = await requireUser();
     const db = getDb();
+
+    // Throttle code guessing per IP and per account.
+    await enforceRateLimit(`join:ip:${getClientIp()}`, 20, 600);
+    await enforceRateLimit(`join:user:${user.id}`, 20, 600);
 
     const [group] = await db
       .select()
