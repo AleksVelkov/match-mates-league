@@ -25,6 +25,9 @@ export type Env = {
   // Must match exactly one of the "Authorized redirect URIs" in Google Cloud Console.
   // e.g. https://scoriq.app/auth/callback/google
   GOOGLE_REDIRECT_URI: string;
+  // API-Sports (v3.football.api-sports.io) — required for squad/player enrichment.
+  // Get a key at dashboard.api-football.com.
+  API_SPORTS_KEY: string;
 };
 
 export function getEnvStore(): Env {
