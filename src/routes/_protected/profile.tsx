@@ -6,7 +6,9 @@ import { signOut } from "@/api/auth";
 import { getAvailableLeagues } from "@/api/groups";
 import { getMyProfile, updateMyName, updateMyCountry, uploadAvatar, getSeasons, getMySeasonStats, deleteMyAccount } from "@/api/profile";
 import { getFavoriteLeague, setFavoriteLeague } from "@/api/preferences";
-import { Camera, Check, ChevronDown, ChevronRight, Flame, LogOut, Moon, Sun, Target, Trash2, Trophy, X } from "lucide-react";
+import { getMyAchievements, type AchievementView } from "@/api/achievements";
+import { TeamCrest } from "@/components/TeamCrest";
+import { Camera, Check, ChevronDown, ChevronRight, Flame, Lock, LogOut, Moon, Star, Sun, Target, Trash2, Trophy, X } from "lucide-react";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -18,11 +20,12 @@ export const Route = createFileRoute("/_protected/profile")({
     ],
   }),
   loader: async () => {
-    const [profile, favLeague, leagues, allSeasons] = await Promise.all([
+    const [profile, favLeague, leagues, allSeasons, achievements] = await Promise.all([
       getMyProfile(),
       getFavoriteLeague(),
       getAvailableLeagues(),
       getSeasons(),
+      getMyAchievements(),
     ]);
     // Load season stats for all seasons in parallel
     const seasonStats = await Promise.all(
@@ -32,7 +35,7 @@ export const Route = createFileRoute("/_protected/profile")({
         })),
       ),
     );
-    return { profile, favLeague, leagues, allSeasons, seasonStats };
+    return { profile, favLeague, leagues, allSeasons, seasonStats, achievements };
   },
   component: ProfilePage,
 });
@@ -73,22 +76,10 @@ function countryFlag(code: string) {
     .join("");
 }
 
-// ─── Achievements ─────────────────────────────────────────────────────────────
-
-const ACHIEVEMENTS = [
-  { id: "a1", name: "First Exact", description: "Nail one on the head.", icon: "🎯", unlocked: (s: AchStats) => s.exact >= 1 },
-  { id: "a2", name: "10 Exact", description: "You see the future.", icon: "🔮", unlocked: (s: AchStats) => s.exact >= 10 },
-  { id: "a3", name: "25 Exact", description: "Certified clairvoyant.", icon: "🧿", unlocked: (s: AchStats) => s.exact >= 25 },
-  { id: "a6", name: "Unstoppable", description: "10 correct in a row.", icon: "⚡", unlocked: (s: AchStats) => s.streak >= 10 },
-  { id: "a7", name: "Legend", description: "Reach 1000 total points.", icon: "👑", unlocked: (s: AchStats) => s.points >= 1000 },
-  { id: "a4", name: "Century", description: "Reach 100 total points.", icon: "💯", unlocked: (s: AchStats) => s.points >= 100 },
-];
-type AchStats = { points: number; exact: number; streak: number };
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function ProfilePage() {
-  const { profile, favLeague, leagues, allSeasons, seasonStats } = Route.useLoaderData();
+  const { profile, favLeague, leagues, allSeasons, seasonStats, achievements } = Route.useLoaderData();
   const router = useRouter();
   const { theme, toggle, mounted } = useTheme();
 
@@ -100,6 +91,7 @@ function ProfilePage() {
   const [nameEditing, setNameEditing] = useState(false);
   const [nameVal, setNameVal] = useState(profile.name);
   const [nameSaving, setNameSaving] = useState(false);
+  const [openAch, setOpenAch] = useState<AchievementView | null>(null);
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -147,9 +139,7 @@ function ProfilePage() {
     setCountryOpen(false);
   }
 
-  // Aggregate totals across all seasons for achievements
-  const totalPoints = seasonStats.reduce((s, r) => s + r.points, 0);
-  const totalExact = seasonStats.reduce((s, r) => s + r.exact, 0);
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   return (
     <AppShell>
@@ -253,18 +243,34 @@ function ProfilePage() {
 
       {/* ── Achievements ── */}
       <section className="px-5 pb-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-1">Achievements</p>
+        <div className="mb-3 flex items-center justify-between px-1">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Achievements</p>
+          <span className="text-[11px] font-semibold text-muted-foreground">{unlockedCount}/{achievements.length}</span>
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          {ACHIEVEMENTS.map((a) => {
-            const unlocked = a.unlocked({ points: totalPoints, exact: totalExact, streak: 0 });
-            return (
-              <div key={a.id} className={["rounded-2xl border p-3 transition-all", unlocked ? "border-primary/40 bg-gradient-to-br from-primary/15 to-surface" : "border-border bg-surface opacity-50"].join(" ")}>
+          {achievements.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => setOpenAch(a)}
+              className={[
+                "relative rounded-2xl border p-3 text-left transition-all",
+                a.unlocked
+                  ? "border-primary/40 bg-gradient-to-br from-primary/15 to-surface active:scale-[0.98]"
+                  : "border-border bg-surface opacity-50 active:scale-[0.98]",
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between">
                 <div className="text-2xl">{a.icon}</div>
-                <div className="mt-1 text-sm font-semibold leading-tight">{a.name}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground leading-tight">{a.description}</div>
+                {a.unlocked ? (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
               </div>
-            );
-          })}
+              <div className="mt-1 text-sm font-semibold leading-tight">{a.name}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground leading-tight">{a.description}</div>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -365,7 +371,111 @@ function ProfilePage() {
           onClose={() => setLeagueOpen(false)}
         />
       )}
+
+      {/* ── Achievement detail modal ── */}
+      {openAch && <AchievementModal achievement={openAch} onClose={() => setOpenAch(null)} />}
     </AppShell>
+  );
+}
+
+// ─── Achievement detail modal ───────────────────────────────────────────────────
+
+function AchievementModal({ achievement, onClose }: { achievement: AchievementView; onClose: () => void }) {
+  const a = achievement;
+  const d = a.detail;
+  const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-[400px] animate-in fade-in zoom-in-95 duration-200">
+          <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-border px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className={["grid h-12 w-12 place-items-center rounded-2xl text-2xl", a.unlocked ? "bg-gradient-to-br from-primary/25 to-surface" : "bg-muted/30 opacity-60"].join(" ")}>
+                  {a.icon}
+                </div>
+                <div>
+                  <p className="font-display text-xl leading-tight">{a.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{a.description}</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-surface">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-5">
+              {a.unlocked && d ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-primary">{d.progress}</span>
+                    <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>{dateFmt.format(new Date(d.date))}</span>
+                  </div>
+
+                  {/* The match */}
+                  <div className="rounded-2xl border border-border bg-background/50 p-4">
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                      <div className="flex flex-col items-center gap-1.5">
+                        <TeamCrest short={d.homeShort} crestUrl={d.homeCrest} size={36} />
+                        <span className="text-xs font-semibold">{d.homeShort}</span>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-display text-2xl leading-none">{d.resultHome}–{d.resultAway}</div>
+                        <div className="mt-1 text-[9px] uppercase tracking-widest text-muted-foreground">Final</div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1.5">
+                        <TeamCrest short={d.awayShort} crestUrl={d.awayCrest} size={36} />
+                        <span className="text-xs font-semibold">{d.awayShort}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Your prediction */}
+                  <div className="flex items-center justify-between rounded-2xl border border-border bg-background/50 px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Your pick</span>
+                    <div className="flex items-center gap-2">
+                      {d.isJoker && (
+                        <span className="flex items-center gap-1 rounded-full bg-joker/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-joker">
+                          <Star className="h-2.5 w-2.5 fill-current" /> ×2
+                        </span>
+                      )}
+                      <span className="font-display text-lg">
+                        {d.predHome ?? "–"}–{d.predAway ?? "–"}
+                      </span>
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        +{d.pointsEarned} pt
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Group */}
+                  <div className="flex items-center justify-between rounded-2xl border border-border bg-background/50 px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Group</span>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold">
+                      <span>{d.groupEmoji}</span> {d.groupName}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <div className="grid h-12 w-12 place-items-center rounded-full bg-muted/30">
+                    <Lock className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-semibold">Locked</p>
+                  <p className="text-xs text-muted-foreground">
+                    Keep predicting to unlock this. {a.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
