@@ -66,6 +66,7 @@ export const groups = sqliteTable("groups", {
     .notNull()
     .references(() => user.id),
   round: integer("round").notNull().default(1),
+  showPredictionsBeforeKickoff: integer("show_predictions_before_kickoff", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 

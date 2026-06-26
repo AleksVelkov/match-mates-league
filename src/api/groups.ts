@@ -140,6 +140,18 @@ export const updateGroup = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateGroupSettings = createServerFn({ method: "POST" })
+  .validator(z.object({ groupId: z.string(), showPredictionsBeforeKickoff: z.boolean() }))
+  .handler(async ({ data }) => {
+    const user = await requireUser();
+    const db = getDb();
+    const [group] = await db.select({ ownerId: groups.ownerId }).from(groups).where(eq(groups.id, data.groupId)).limit(1);
+    if (!group) throw new Error("Group not found");
+    if (group.ownerId !== user.id) throw new Error("Only the group owner can change settings");
+    await db.update(groups).set({ showPredictionsBeforeKickoff: data.showPredictionsBeforeKickoff }).where(eq(groups.id, data.groupId));
+    return { ok: true };
+  });
+
 export const removeMember = createServerFn({ method: "POST" })
   .validator(z.object({ groupId: z.string(), userId: z.string() }))
   .handler(async ({ data }) => {

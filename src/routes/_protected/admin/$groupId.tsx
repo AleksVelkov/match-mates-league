@@ -3,15 +3,18 @@ import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
-import { getGroup, getMyGroups, getGroupMembers, updateGroup, removeMember } from "@/api/groups";
+import { getGroup, getMyGroups, getGroupMembers, updateGroup, updateGroupSettings, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
 import { getLeaderboard } from "@/api/leaderboard";
 import { getMyPredictions, savePredictions, copyPredictionsToMyGroups, getGroupHistory } from "@/api/predictions";
 import {
   ChevronLeft,
   ChevronDown,
+  ChevronRight,
   Check,
   Copy,
+  Eye,
+  EyeOff,
   Share2,
   CopyPlus,
   Crown,
@@ -118,7 +121,7 @@ function AdminGroupPage() {
             predictionHome: p?.scoreHome ?? null,
             predictionAway: p?.scoreAway ?? null,
             isJoker: p?.isJoker ?? false,
-            locked: new Date(kickoff).getTime() <= now,
+            locked: new Date(kickoff).getTime() <= now || f.status === "finished",
           };
         }),
     [rawFixtures, predMap, now],
@@ -329,7 +332,7 @@ function AdminGroupPage() {
           </>
         )}
 
-        {activeTab === "played" && <PlayedTab history={history} />}
+        {activeTab === "played" && <PlayedTab history={history} meId={me.id} />}
       </section>
 
       {/* Share modal */}
@@ -348,6 +351,7 @@ function AdminGroupPage() {
           group={group}
           members={members}
           ownerId={group.ownerId}
+          showPredictionsBeforeKickoff={group.showPredictionsBeforeKickoff ?? false}
           onClose={() => setManageOpen(false)}
           onSaved={() => {
             setManageOpen(false);
@@ -549,12 +553,14 @@ function ManageSheet({
   group,
   members,
   ownerId,
+  showPredictionsBeforeKickoff: initialShowPreds,
   onClose,
   onSaved,
 }: {
   group: { id: string; name: string; emoji: string };
   members: Member[];
   ownerId: string;
+  showPredictionsBeforeKickoff: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -562,6 +568,8 @@ function ManageSheet({
   const [emoji, setEmoji] = useState(group.emoji);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPreds, setShowPreds] = useState(initialShowPreds);
+  const [togglingPreds, setTogglingPreds] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [removeMsg, setRemoveMsg] = useState<{ id: string; ok: boolean; text: string } | null>(null);
@@ -594,6 +602,19 @@ function ManageSheet({
       setRemoveMsg({ id: userId, ok: false, text: e instanceof Error ? e.message : "Remove failed" });
     } finally {
       setRemovingId(null);
+    }
+  }
+
+  async function handleTogglePreds() {
+    const next = !showPreds;
+    setShowPreds(next);
+    setTogglingPreds(true);
+    try {
+      await updateGroupSettings({ data: { groupId: group.id, showPredictionsBeforeKickoff: next } });
+    } catch {
+      setShowPreds(!next); // revert on error
+    } finally {
+      setTogglingPreds(false);
     }
   }
 
@@ -630,6 +651,33 @@ function ManageSheet({
                 {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" /> : <Save className="h-4 w-4" />}
                 {saving ? "Saving…" : "Save changes"}
               </button>
+            </div>
+
+            <div>
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Settings</p>
+              <div className="overflow-hidden rounded-2xl border border-border bg-background/50">
+                <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Show picks before kickoff</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Let members see each other's predictions before the match starts.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleTogglePreds}
+                    disabled={togglingPreds}
+                    className={[
+                      "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50",
+                      showPreds ? "bg-primary" : "bg-muted",
+                    ].join(" ")}
+                  >
+                    <span className={[
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                      showPreds ? "translate-x-5" : "translate-x-0.5",
+                    ].join(" ")} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -781,40 +829,52 @@ function GroupActionMenu({
   isOwner: boolean; siblingCount: number; copying: boolean;
   onManage: () => void; onCopy: () => void; onStandings: () => void; onShare: () => void;
 }) {
+  const [expanded, setExpanded] = useState(true);
+
   return (
     <div className="flex items-center gap-1">
-      {isOwner && (
-        <button
-          onClick={onManage}
-          className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
-        >
-          <Settings className="h-4.5 w-4.5" />
-        </button>
+      {expanded && (
+        <>
+          {isOwner && (
+            <button
+              onClick={onManage}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          )}
+          {siblingCount > 0 && (
+            <button
+              onClick={onCopy}
+              disabled={copying}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              {copying
+                ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                : <CopyPlus className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            onClick={onStandings}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
+          >
+            <Trophy className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onShare}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+        </>
       )}
-      {siblingCount > 0 && (
-        <button
-          onClick={onCopy}
-          disabled={copying}
-          className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground disabled:opacity-50"
-        >
-          {copying
-            ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            : <CopyPlus className="h-4.5 w-4.5" />}
-        </button>
-      )}
+      {/* Toggle arrow — points left to collapse, right to expand */}
       <button
-        onClick={onStandings}
+        onClick={() => setExpanded((e) => !e)}
         className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
       >
-        <Trophy className="h-4.5 w-4.5" />
+        <ChevronRight className={["h-4 w-4 transition-transform duration-200", expanded ? "rotate-180" : ""].join(" ")} />
       </button>
-      <button
-        onClick={onShare}
-        className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground hover:text-foreground"
-      >
-        <Share2 className="h-4.5 w-4.5" />
-      </button>
-      <ChevronLeft className="h-4 w-4 -rotate-180 text-muted-foreground/40" />
     </div>
   );
 }
@@ -831,8 +891,9 @@ function getOutcome(rH: number, rA: number, pH: number | null, pA: number | null
   return Math.sign(pH - pA) === Math.sign(rH - rA) ? "correct" : "wrong";
 }
 
-function PlayedTab({ history }: { history: GroupHistory }) {
+function PlayedTab({ history, meId }: { history: GroupHistory; meId: string }) {
   const [openRound, setOpenRound] = useState<number | null>(history.rounds[0]?.round ?? null);
+  const [openFixture, setOpenFixture] = useState<string | null>(null);
 
   if (history.rounds.length === 0) {
     return (
@@ -844,81 +905,95 @@ function PlayedTab({ history }: { history: GroupHistory }) {
 
   return (
     <div className="space-y-3 pb-6">
-      {history.rounds.map(({ round, fixtures: rFixtures, memberTotals }) => {
+      {history.rounds.map(({ round, fixtures: rFixtures }) => {
         const isOpen = openRound === round;
         return (
           <div key={round} className="overflow-hidden rounded-3xl border border-border bg-surface">
             {/* Round header */}
             <button
-              onClick={() => setOpenRound(isOpen ? null : round)}
+              onClick={() => { setOpenRound(isOpen ? null : round); setOpenFixture(null); }}
               className="flex w-full items-center justify-between px-5 py-3.5"
             >
               <span className="font-display text-lg">Round {round}</span>
               <ChevronDown className={["h-4 w-4 text-muted-foreground transition-transform duration-200", isOpen ? "rotate-180" : ""].join(" ")} />
             </button>
 
-            {/* Member points row — always visible */}
-            <div className="flex gap-4 overflow-x-auto border-t border-border px-5 py-3">
-              {memberTotals.map((m) => (
-                <div key={m.userId} className="flex shrink-0 flex-col items-center gap-1">
-                  <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-xs">
-                    {m.image ? <img src={m.image} alt={m.name} className="h-full w-full object-cover" /> : m.avatar}
-                  </span>
-                  <span className="font-display text-base leading-none text-primary">{m.points}</span>
-                  <span className="max-w-[52px] truncate text-[10px] text-muted-foreground">{m.name.split(" ")[0]}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Fixture breakdown */}
+            {/* Fixture list */}
             {isOpen && (
               <div className="divide-y divide-border border-t border-border">
                 {rFixtures.map((f) => {
-                  const resultSign = Math.sign(f.resultHome - f.resultAway);
+                  const myPick = f.memberPredictions.find((p) => p.userId === meId);
+                  const myOutcome = myPick ? getOutcome(f.resultHome, f.resultAway, myPick.scoreHome, myPick.scoreAway) : "none";
+                  const isFixtureOpen = openFixture === f.id;
+
                   return (
-                    <div key={f.id} className="px-4 py-3">
-                      {/* Match result */}
-                      <div className="mb-3 flex items-center gap-2">
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{dateFmt.format(new Date(f.kickoffAt))}</span>
-                        <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={18} />
-                        <span className="text-xs font-semibold">{f.homeShort}</span>
-                        <span className="mx-1 font-display text-base">{f.resultHome}–{f.resultAway}</span>
-                        <span className="text-xs font-semibold">{f.awayShort}</span>
-                        <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={18} />
-                      </div>
-                      {/* Per-member predictions */}
-                      <div className="space-y-2">
-                        {f.memberPredictions.map((mp) => {
-                          const member = history.members.find((m) => m.id === mp.userId);
-                          if (!member) return null;
-                          const outcome = getOutcome(f.resultHome, f.resultAway, mp.scoreHome, mp.scoreAway);
-                          const avatar = member.name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-                          return (
-                            <div key={mp.userId} className="flex items-center gap-2">
-                              <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-[10px]">
-                                {member.image ? <img src={member.image} alt={member.name} className="h-full w-full object-cover" /> : avatar}
-                              </span>
-                              <span className="w-16 truncate text-xs text-muted-foreground">{member.name.split(" ")[0]}</span>
-                              {mp.scoreHome !== null ? (
-                                <>
-                                  <span className="font-display text-sm">{mp.scoreHome}–{mp.scoreAway}</span>
-                                  {mp.isJoker && <span className="text-[10px] text-joker">★</span>}
-                                  <span className={[
-                                    "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                    outcome === "exact" ? "bg-success/20 text-success" :
-                                    outcome === "correct" ? "bg-primary/15 text-primary" :
-                                    "bg-muted/30 text-muted-foreground",
-                                  ].join(" ")}>
-                                    {outcome === "exact" ? "Exact" : outcome === "correct" ? "Correct" : "Wrong"} · {mp.pointsEarned}pt
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="ml-2 text-[11px] italic text-muted-foreground">no pick</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div key={f.id}>
+                      {/* Compact fixture row — tap to expand others' picks */}
+                      <button
+                        onClick={() => setOpenFixture(isFixtureOpen ? null : f.id)}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+                      >
+                        {/* Crests + result */}
+                        <TeamCrest short={f.homeShort} crestUrl={f.homeCrest} size={20} />
+                        <span className="font-display text-base">{f.resultHome}–{f.resultAway}</span>
+                        <TeamCrest short={f.awayShort} crestUrl={f.awayCrest} size={20} />
+                        <span className="min-w-0 flex-1 truncate text-left text-[11px] text-muted-foreground">
+                          {f.homeShort} v {f.awayShort}
+                        </span>
+                        {/* My pick + badge */}
+                        {myPick?.scoreHome !== null && myPick?.scoreHome !== undefined ? (
+                          <span className={[
+                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            myOutcome === "exact" ? "bg-success/20 text-success" :
+                            myOutcome === "correct" ? "bg-primary/15 text-primary" :
+                            "bg-muted/30 text-muted-foreground",
+                          ].join(" ")}>
+                            {myPick.scoreHome}–{myPick.scoreAway}
+                            {myPick.isJoker ? " ★" : ""}
+                            {" · "}{myOutcome === "exact" ? "Exact" : myOutcome === "correct" ? "Correct" : "Wrong"}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[10px] italic text-muted-foreground">no pick</span>
+                        )}
+                        <ChevronDown className={["h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-transform duration-150", isFixtureOpen ? "rotate-180" : ""].join(" ")} />
+                      </button>
+
+                      {/* Expanded: all members' predictions */}
+                      {isFixtureOpen && (
+                        <div className="space-y-1.5 border-t border-border/50 bg-background/40 px-4 py-3">
+                          {f.memberPredictions.map((mp) => {
+                            const member = history.members.find((m) => m.id === mp.userId);
+                            if (!member) return null;
+                            const outcome = getOutcome(f.resultHome, f.resultAway, mp.scoreHome, mp.scoreAway);
+                            const avatar = member.name.split(" ").map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+                            return (
+                              <div key={mp.userId} className="flex items-center gap-2">
+                                <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 font-display text-[10px]">
+                                  {member.image ? <img src={member.image} alt={member.name} className="h-full w-full object-cover" /> : avatar}
+                                </span>
+                                <span className="w-20 truncate text-xs font-medium">{member.name.split(" ")[0]}</span>
+                                {mp.scoreHome !== null ? (
+                                  <>
+                                    <span className="font-display text-sm">{mp.scoreHome}–{mp.scoreAway}</span>
+                                    {mp.isJoker && <span className="text-[10px] text-joker">★</span>}
+                                    <span className={[
+                                      "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                      outcome === "exact" ? "bg-success/20 text-success" :
+                                      outcome === "correct" ? "bg-primary/15 text-primary" :
+                                      "bg-muted/30 text-muted-foreground",
+                                    ].join(" ")}>
+                                      {outcome === "exact" ? "Exact" : outcome === "correct" ? "Correct" : "Wrong"}
+                                      {mp.pointsEarned != null ? ` · ${mp.pointsEarned}pt` : ""}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="ml-2 text-[11px] italic text-muted-foreground">no pick</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

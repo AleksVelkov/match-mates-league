@@ -171,11 +171,25 @@ function GuidePage() {
             </p>
           </Section>
 
+          {/* Prediction visibility */}
+          <Section title="6. Prediction visibility">
+            <p>
+              By default, your picks stay hidden from other group members until the match kicks off —
+              this keeps things competitive and prevents last-minute copying.
+            </p>
+            <p>
+              If your group prefers to play with open predictions, the <strong>group owner</strong> can
+              enable <em>Show picks before kickoff</em> in the group settings (the ⚙ Manage button).
+              When turned on, everyone in the group can see each other's predictions before the match starts.
+            </p>
+          </Section>
+
           {/* History */}
-          <Section title="6. Round history">
+          <Section title="7. Round history">
             <p>
               Switch to the <strong>Played</strong> tab in your group to see all past rounds.
-              Expand any round to see every match result alongside what each member predicted.
+              Expand a round, then tap any match to see what every member predicted and how many
+              points they scored.
             </p>
           </Section>
 
