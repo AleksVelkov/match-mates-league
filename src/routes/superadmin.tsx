@@ -12,6 +12,7 @@ import {
   syncCompetition,
   syncCompetitionSeason,
   setMatchResult,
+  clearMatchResult,
   setActiveRound,
   getSeasonsList,
   createSeason,
@@ -570,6 +571,15 @@ function MatchesTab({
                   ),
                 )
               }
+              onResultCleared={() =>
+                setFixtures((arr) =>
+                  arr.map((x) =>
+                    x.id === f.id
+                      ? { ...x, resultHome: null, resultAway: null, status: "upcoming" }
+                      : x,
+                  ),
+                )
+              }
             />
           ))
         )}
@@ -581,15 +591,19 @@ function MatchesTab({
 function MatchRow({
   fixture: f,
   onResultSaved,
+  onResultCleared,
 }: {
   fixture: CompFixture;
   onResultSaved: (home: number, away: number) => void;
+  onResultCleared: () => void;
 }) {
   const hasResult = f.resultHome !== null && f.resultAway !== null;
   const [editing, setEditing] = useState(false);
   const [home, setHome] = useState(String(f.resultHome ?? ""));
   const [away, setAway] = useState(String(f.resultAway ?? ""));
   const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const statusColors: Record<string, string> = {
@@ -618,6 +632,23 @@ function MatchRow({
     }
   }
 
+  async function clear() {
+    setClearing(true);
+    setErr(null);
+    try {
+      await clearMatchResult({ data: { fixtureId: f.id } });
+      onResultCleared();
+      setEditing(false);
+      setConfirmClear(false);
+      setHome("");
+      setAway("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to clear");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <article className="rounded-3xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
@@ -635,17 +666,43 @@ function MatchRow({
           >
             {f.status}
           </span>
-          {hasResult && !editing && (
-            <button
-              onClick={() => {
-                setEditing(true);
-                setHome(String(f.resultHome));
-                setAway(String(f.resultAway));
-              }}
-              className="text-[11px] font-semibold uppercase tracking-widest text-primary"
-            >
-              Edit
-            </button>
+          {hasResult && !editing && !confirmClear && (
+            <>
+              <button
+                onClick={() => {
+                  setEditing(true);
+                  setHome(String(f.resultHome));
+                  setAway(String(f.resultAway));
+                }}
+                className="text-[11px] font-semibold uppercase tracking-widest text-primary"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="text-[11px] font-semibold uppercase tracking-widest text-destructive"
+              >
+                Clear
+              </button>
+            </>
+          )}
+          {confirmClear && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">Clear result?</span>
+              <button
+                onClick={clear}
+                disabled={clearing}
+                className="rounded-lg bg-destructive px-2.5 py-1 text-[11px] font-semibold text-destructive-foreground disabled:opacity-50"
+              >
+                {clearing ? "…" : "Yes"}
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold"
+              >
+                No
+              </button>
+            </div>
           )}
         </div>
       </div>

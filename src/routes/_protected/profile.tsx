@@ -422,6 +422,9 @@ function UsageDataRow() {
 
 function NotificationsRow() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  // App-level preference, independent of the browser permission. The browser can't
+  // revoke a granted permission, so we track the user's own on/off choice here.
+  const [pref, setPref] = useLocalBool("scoriq_notifications", false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -429,15 +432,27 @@ function NotificationsRow() {
     }
   }, []);
 
-  async function handleToggle() {
-    if (permission !== "default") return;
-    const result = await Notification.requestPermission();
-    setPermission(result);
-  }
-
-  const isOn = permission === "granted";
   const isDenied = permission === "denied";
   const isUnsupported = permission === "unsupported";
+  // "On" means: the user wants them AND the browser still allows them.
+  const isOn = pref && permission === "granted";
+
+  async function handleToggle(next: boolean) {
+    if (!next) {
+      // Turning off is always allowed — just clear the preference.
+      setPref(false);
+      return;
+    }
+    // Turning on: request browser permission if not yet decided.
+    if (permission === "default") {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      setPref(result === "granted");
+    } else if (permission === "granted") {
+      setPref(true);
+    }
+    // If denied, the switch is disabled below, so this branch won't run.
+  }
 
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-4">
@@ -456,7 +471,7 @@ function NotificationsRow() {
       <ToggleSwitch
         on={isOn}
         onChange={handleToggle}
-        disabled={isDenied || isUnsupported || isOn}
+        disabled={isDenied || isUnsupported}
       />
     </div>
   );

@@ -418,6 +418,39 @@ export const setMatchResult = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Clear a match result (super admin). Resets the score to unset, marks the match
+ * upcoming again, and wipes any points awarded for it. The next sync from
+ * football-data.org will repopulate status/score if the match has actually finished.
+ */
+export const clearMatchResult = createServerFn({ method: "POST" })
+  .validator(z.object({ fixtureId: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const [fixture] = await db
+      .select({ id: fixtures.id })
+      .from(fixtures)
+      .where(eq(fixtures.id, data.fixtureId))
+      .limit(1);
+    if (!fixture) throw new Error("Match not found");
+
+    // Wipe awarded points for every prediction on this fixture…
+    await db
+      .update(predictions)
+      .set({ pointsEarned: null })
+      .where(eq(predictions.fixtureId, data.fixtureId));
+
+    // …and reset the fixture itself.
+    await db
+      .update(fixtures)
+      .set({ resultHome: null, resultAway: null, status: "upcoming" })
+      .where(eq(fixtures.id, data.fixtureId));
+
+    return { ok: true };
+  });
+
 /** Override which round end users currently see for a competition. */
 export const setActiveRound = createServerFn({ method: "POST" })
   .validator(z.object({ competition: z.string(), round: z.number().int().min(1) }))
