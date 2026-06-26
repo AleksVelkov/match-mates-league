@@ -13,6 +13,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GuideRouteImport } from './routes/guide'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
 import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
@@ -40,6 +41,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedRoute = ProtectedRouteImport.update({
@@ -84,6 +90,7 @@ const ProtectedAdminGroupIdRoute = ProtectedAdminGroupIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
+  '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof ProtectedAdminIndexRoute
 }
 export interface FileRoutesByTo {
+  '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
@@ -111,6 +119,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_protected': typeof ProtectedRouteWithChildren
+  '/guide': typeof GuideRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/superadmin': typeof SuperadminRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/guide'
     | '/login'
     | '/privacy-policy'
     | '/superadmin'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/guide'
     | '/login'
     | '/privacy-policy'
     | '/superadmin'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_protected'
+    | '/guide'
     | '/login'
     | '/privacy-policy'
     | '/superadmin'
@@ -168,6 +180,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
+  GuideRoute: typeof GuideRoute
   LoginRoute: typeof LoginRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   SuperadminRoute: typeof SuperadminRoute
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected': {
@@ -288,6 +308,7 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
+  GuideRoute: GuideRoute,
   LoginRoute: LoginRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   SuperadminRoute: SuperadminRoute,
