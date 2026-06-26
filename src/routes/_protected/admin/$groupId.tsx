@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TeamCrest } from "@/components/TeamCrest";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { getGroup, getMyGroups, getGroupMembers, updateGroup, updateGroupSettings, removeMember } from "@/api/groups";
 import { getFixtures } from "@/api/fixtures";
 import { getLeaderboard } from "@/api/leaderboard";
@@ -606,8 +607,7 @@ function ManageSheet({
     }
   }
 
-  async function handleTogglePreds() {
-    const next = !showPreds;
+  async function handleTogglePreds(next: boolean) {
     setShowPreds(next);
     setTogglingPreds(true);
     try {
@@ -663,19 +663,7 @@ function ManageSheet({
                       Let members see each other's predictions before the match starts.
                     </p>
                   </div>
-                  <button
-                    onClick={handleTogglePreds}
-                    disabled={togglingPreds}
-                    className={[
-                      "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50",
-                      showPreds ? "bg-primary" : "bg-muted",
-                    ].join(" ")}
-                  >
-                    <span className={[
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
-                      showPreds ? "translate-x-5" : "translate-x-0.5",
-                    ].join(" ")} />
-                  </button>
+                  <ToggleSwitch on={showPreds} onChange={handleTogglePreds} disabled={togglingPreds} />
                 </div>
               </div>
             </div>
