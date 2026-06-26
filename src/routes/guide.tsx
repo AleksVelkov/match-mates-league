@@ -95,8 +95,10 @@ function GuidePage() {
               match starts. You can update them any time before the whistle.
             </p>
             <p>
-              Predictions stay hidden from your group members until the match kicks off, so no
-              one can copy you at the last minute.
+              By default, predictions stay hidden from your group members until the match kicks
+              off, so no one can copy you at the last minute. Some groups turn this off — if your
+              group owner has enabled open predictions, everyone can see each other's picks before
+              kickoff. See <strong>Prediction visibility</strong> below.
             </p>
           </Section>
 
