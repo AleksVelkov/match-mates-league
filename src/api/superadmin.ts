@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq, and, count, sql, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, or, count, sql, isNull, isNotNull, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import { getDb } from "@/db/client";
@@ -22,6 +22,13 @@ import {
   getCurrentRound,
   setCurrentRound,
 } from "@/lib/leagues";
+import {
+  API_SPORTS_LEAGUE_IDS,
+  fetchLeagueTeams,
+  fetchTeamSquad,
+  currentSeason,
+} from "@/lib/api-sports";
+import type { SquadMember } from "@/api/teams";
 
 async function requireSuperAdmin() {
   const env = getEnvStore();
@@ -546,6 +553,107 @@ export const syncTeams = createServerFn({ method: "POST" })
       ),
     };
   });
+
+// ─── API-Sports player enrichment ────────────────────────────────────────────
+
+/**
+ * Fetch squad data (photos, ages) from API-Sports for all teams in a competition
+ * and merge it into the existing squadJson. Matches players by shirt number or
+ * normalized name. Also stores the API-Sports team ID for future calls.
+ */
+export const syncPlayersFromApiSports = createServerFn({ method: "POST" })
+  .validator(z.object({ competition: z.string() }))
+  .handler(async ({ data }) => {
+    await requireSuperAdmin();
+    const db = getDb();
+
+    const leagueId = API_SPORTS_LEAGUE_IDS[data.competition];
+    if (!leagueId) throw new Error(`No API-Sports league ID for "${data.competition}"`);
+
+    const season = currentSeason();
+
+    // Step 1: get all API-Sports teams for this league/season
+    const apiTeams = await fetchLeagueTeams(leagueId, season);
+    if (!apiTeams.length) throw new Error("API-Sports returned no teams for this league/season");
+
+    // Step 2: get the distinct team IDs for this competition from our fixtures
+    const fixtureTeams = await db
+      .selectDistinct({ teamId: fixtures.homeTeamId })
+      .from(fixtures)
+      .where(eq(fixtures.competition, data.competition))
+      .union(
+        db.selectDistinct({ teamId: fixtures.awayTeamId })
+          .from(fixtures)
+          .where(eq(fixtures.competition, data.competition)),
+      );
+    const teamIds = fixtureTeams.map((r) => r.teamId).filter(Boolean) as string[];
+    if (!teamIds.length) throw new Error("No fixtures synced for this competition yet");
+
+    const dbTeams = await db
+      .select({ id: teams.id, name: teams.name, tla: teams.tla, squadJson: teams.squadJson })
+      .from(teams)
+      .where(inArray(teams.id, teamIds));
+
+    const now = new Date();
+    let synced = 0;
+    let noMatch = 0;
+
+    for (const apiTeam of apiTeams) {
+      // Try to match by name or TLA/code
+      const matched = findBestTeamMatch(dbTeams, apiTeam.team.name, apiTeam.team.code);
+      if (!matched) { noMatch++; continue; }
+
+      const squad = await fetchTeamSquad(apiTeam.team.id);
+      if (!squad.length) continue;
+
+      const existing: SquadMember[] = matched.squadJson ? (JSON.parse(matched.squadJson) as SquadMember[]) : [];
+
+      const merged: SquadMember[] = existing.map((p) => {
+        const hit = squad.find(
+          (s) =>
+            (s.number != null && s.number === p.shirtNumber) ||
+            normalizeName(s.name) === normalizeName(p.name),
+        );
+        return hit ? { ...p, age: hit.age ?? null, photo: hit.photo ?? null } : p;
+      });
+
+      await db
+        .update(teams)
+        .set({ apiSportsId: apiTeam.team.id, squadJson: JSON.stringify(merged), playersSyncedAt: now })
+        .where(eq(teams.id, matched.id));
+
+      synced++;
+    }
+
+    return { competition: data.competition, synced, noMatch, total: apiTeams.length };
+  });
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function findBestTeamMatch(
+  dbTeams: Array<{ id: string; name: string; tla: string; squadJson: string | null }>,
+  apiName: string,
+  apiCode: string | null,
+): (typeof dbTeams)[number] | null {
+  // 1. Exact name
+  const exactName = dbTeams.find((t) => t.name === apiName);
+  if (exactName) return exactName;
+
+  // 2. TLA / code match
+  if (apiCode) {
+    const tlaMatch = dbTeams.find((t) => t.tla.toUpperCase() === apiCode.toUpperCase());
+    if (tlaMatch) return tlaMatch;
+  }
+
+  // 3. One contains the other (handles "Manchester United FC" vs "Manchester United")
+  const normApi = normalizeName(apiName);
+  const contained = dbTeams.find(
+    (t) => normalizeName(t.name).includes(normApi) || normApi.includes(normalizeName(t.name)),
+  );
+  return contained ?? null;
+}
 
 // ─── Seasons ──────────────────────────────────────────────────────────────────
 

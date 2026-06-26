@@ -187,6 +187,8 @@ export const teams = sqliteTable("teams", {
   coachNationality: text("coach_nationality"),
   squadJson: text("squad_json"), // JSON: SquadMember[]
   syncedAt: integer("synced_at", { mode: "timestamp" }).notNull(),
+  apiSportsId: integer("api_sports_id"),
+  playersSyncedAt: integer("players_synced_at", { mode: "timestamp" }),
 });
 
 // Per-competition league standing. One row per (team, competition).

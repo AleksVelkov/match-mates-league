@@ -17,6 +17,7 @@ import {
   createSeason,
   deleteSeason,
   syncTeams,
+  syncPlayersFromApiSports,
 } from "@/api/superadmin";
 import { COMPETITION_CODES } from "@/lib/football-data";
 import { Calendar, Plus, Trash2, Users, Trophy, Target, Database, Check, RefreshCw, AlertTriangle, ShieldCheck } from "lucide-react";
@@ -831,6 +832,8 @@ function SeasonsTab({ initialSeasons }: { initialSeasons: Season[] }) {
 function TeamsTab({ enabledCompetitions }: { enabledCompetitions: string[] }) {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncLog, setSyncLog] = useState<Array<{ competition: string; ok: boolean; text: string }>>([]);
+  const [syncingPlayers, setSyncingPlayers] = useState<string | null>(null);
+  const [playersLog, setPlayersLog] = useState<Array<{ competition: string; ok: boolean; text: string }>>([]);
 
   async function handleSyncTeams(competition: string) {
     setSyncing(competition);
@@ -851,6 +854,25 @@ function TeamsTab({ enabledCompetitions }: { enabledCompetitions: string[] }) {
     }
   }
 
+  async function handleSyncPlayers(competition: string) {
+    setSyncingPlayers(competition);
+    setPlayersLog((prev) => prev.filter((l) => l.competition !== competition));
+    try {
+      const r = await syncPlayersFromApiSports({ data: { competition } });
+      setPlayersLog((prev) => [
+        ...prev,
+        { competition, ok: true, text: `${r.synced}/${r.total} teams enriched · ${r.noMatch} unmatched` },
+      ]);
+    } catch (e) {
+      setPlayersLog((prev) => [
+        ...prev,
+        { competition, ok: false, text: e instanceof Error ? e.message : "Sync failed" },
+      ]);
+    } finally {
+      setSyncingPlayers(null);
+    }
+  }
+
   if (enabledCompetitions.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
@@ -866,34 +888,54 @@ function TeamsTab({ enabledCompetitions }: { enabledCompetitions: string[] }) {
         Run this after syncing fixtures to populate team pages.
       </p>
       <p className="text-[11px] text-muted-foreground/70 -mt-1">
-        Note: xG and detailed match stats are not available on the football-data.org free tier.
+        After syncing teams, use "Sync Players" to enrich squads with photos and ages from API-Sports.
       </p>
 
       <ul className="space-y-2">
         {enabledCompetitions.map((competition) => {
           const log = syncLog.find((l) => l.competition === competition);
+          const pLog = playersLog.find((l) => l.competition === competition);
           const isSyncing = syncing === competition;
+          const isSyncingPlayers = syncingPlayers === competition;
+          const anyBusy = syncing !== null || syncingPlayers !== null;
           return (
             <li key={competition} className="rounded-3xl border border-border bg-surface p-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="font-semibold">{competition}</p>
                   <p className="text-[11px] text-muted-foreground">{COMPETITION_CODES[competition]}</p>
                 </div>
-                <button
-                  onClick={() => handleSyncTeams(competition)}
-                  disabled={syncing !== null}
-                  className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 font-display text-sm uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
-                >
-                  <ShieldCheck className={`h-4 w-4 ${isSyncing ? "animate-pulse" : ""}`} />
-                  {isSyncing ? "Syncing…" : "Sync teams"}
-                </button>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    onClick={() => handleSyncPlayers(competition)}
+                    disabled={anyBusy}
+                    className="flex items-center gap-1.5 rounded-2xl border border-border bg-muted px-3 py-2.5 font-display text-xs uppercase tracking-wider text-foreground disabled:opacity-60"
+                  >
+                    <Users className={`h-3.5 w-3.5 ${isSyncingPlayers ? "animate-pulse" : ""}`} />
+                    {isSyncingPlayers ? "Syncing…" : "Sync Players"}
+                  </button>
+                  <button
+                    onClick={() => handleSyncTeams(competition)}
+                    disabled={anyBusy}
+                    className="flex items-center gap-1.5 rounded-2xl bg-primary px-3 py-2.5 font-display text-xs uppercase tracking-wider text-primary-foreground shadow-glow disabled:opacity-60"
+                  >
+                    <ShieldCheck className={`h-3.5 w-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                    {isSyncing ? "Syncing…" : "Sync Teams"}
+                  </button>
+                </div>
               </div>
               {log && (
                 <div
                   className={`mt-3 rounded-xl px-3 py-2 text-xs ${log.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
                 >
                   {log.text}
+                </div>
+              )}
+              {pLog && (
+                <div
+                  className={`mt-2 rounded-xl px-3 py-2 text-xs ${pLog.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
+                >
+                  {pLog.text}
                 </div>
               )}
             </li>

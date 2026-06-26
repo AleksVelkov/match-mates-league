@@ -12,6 +12,8 @@ export type SquadMember = {
   shirtNumber?: number | null;
   nationality?: string | null;
   dateOfBirth?: string | null;
+  age?: number | null;
+  photo?: string | null;
 };
 
 /** Full team profile page data — team info + standings + recent/upcoming matches. */

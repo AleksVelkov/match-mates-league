@@ -353,6 +353,13 @@ function StandingCard({ standing }: { standing: { competition: string; position:
 }
 
 function PlayerRow({ player, last }: { player: SquadMember; last: boolean }) {
+  const initials = player.name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
     <div
       className={[
@@ -360,14 +367,33 @@ function PlayerRow({ player, last }: { player: SquadMember; last: boolean }) {
         !last ? "border-b border-border" : "",
       ].join(" ")}
     >
-      <span className="w-7 text-center font-display text-sm text-muted-foreground">
+      {/* Shirt number */}
+      <span className="w-6 shrink-0 text-center font-display text-sm text-muted-foreground">
         {player.shirtNumber != null ? player.shirtNumber : "—"}
       </span>
+
+      {/* Photo avatar */}
+      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+        {player.photo ? (
+          <img src={player.photo} alt={player.name} className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-muted-foreground">
+            {initials}
+          </span>
+        )}
+      </div>
+
+      {/* Name */}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{player.name}</p>
+        {player.nationality && (
+          <p className="truncate text-[11px] text-muted-foreground">{player.nationality}</p>
+        )}
       </div>
-      {player.nationality && (
-        <span className="shrink-0 text-[11px] text-muted-foreground">{player.nationality}</span>
+
+      {/* Age */}
+      {player.age != null && (
+        <span className="shrink-0 text-[11px] text-muted-foreground">{player.age} yrs</span>
       )}
     </div>
   );
