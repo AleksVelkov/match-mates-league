@@ -52,7 +52,9 @@ export async function scoreFixture(
     .from(schema.predictions)
     .where(eq(schema.predictions.fixtureId, fixtureId));
 
-  // Score each prediction
+  // Score each prediction. Update by the row's own primary key — predictions are
+  // per-group, so the same (fixtureId, userId) can appear in multiple groups with
+  // different scores/jokers, and each row must be scored independently.
   const now = new Date();
   for (const pred of preds) {
     const outcome = getOutcome(pred.scoreHome, pred.scoreAway, resultHome, resultAway);
@@ -60,14 +62,13 @@ export async function scoreFixture(
     await db
       .update(schema.predictions)
       .set({ pointsEarned: points })
-      .where(
-        and(
-          eq(schema.predictions.fixtureId, fixtureId),
-          eq(schema.predictions.userId, pred.userId)
-        )
-      );
+      .where(eq(schema.predictions.id, pred.id));
+  }
 
-    await checkAndUnlockAchievements(db, pred.userId, now);
+  // Re-check achievements once per affected user (idempotent; avoids redundant passes).
+  const userIds = [...new Set(preds.map((p) => p.userId))];
+  for (const userId of userIds) {
+    await checkAndUnlockAchievements(db, userId, now);
   }
 }
 
