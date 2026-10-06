@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Markdown docs (kept out of the repo; README.md is the exception)
+*.md
+!README.md
